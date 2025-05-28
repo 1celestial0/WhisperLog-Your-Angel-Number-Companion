@@ -58,7 +58,7 @@ export function DailyAffirmationCard() {
     <Card className="w-full max-w-xl mx-auto bg-card/80 backdrop-blur-sm shadow-2xl shadow-primary/30">
       <CardHeader className="flex flex-row justify-between items-start">
         <div className="flex flex-col">
-          <CardTitle className="flex items-center gap-2 text-3xl font-handwritten text-accent mb-1">
+          <CardTitle className="flex items-center gap-2 text-3xl font-handwritten text-accent mb-2"> {/* Changed mb-1 to mb-2 */}
             <MessageSquareHeart className="h-8 w-8" />
             Daily Affirmation
           </CardTitle>

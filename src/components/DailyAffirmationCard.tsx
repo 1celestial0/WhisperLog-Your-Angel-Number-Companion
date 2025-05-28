@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import type { DailyAffirmation, LogEntry } from "@/lib/types";
 import { generateDailyAffirmation } from "@/ai/flows/generate-daily-affirmation";
@@ -18,11 +18,11 @@ export function DailyAffirmationCard() {
   const { toast } = useToast();
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [currentDateDisplay, setCurrentDateDisplay] = useState<string>("");
 
-  const fetchAffirmation = async (forceRefresh = false) => {
+  const fetchAffirmation = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     try {
-      // Prepare logged data string (last few entries perhaps, or a summary)
       const recentLogs = logEntries.slice(0, 5).map(entry => 
         `Date: ${format(new Date(entry.timestamp), "PP")}, Number: ${entry.angelNumber}, Emotion: ${entry.emotion}, Activity: ${entry.activity}${entry.notes ? ", Notes: " + entry.notes : ""}`
       ).join("\n");
@@ -32,7 +32,6 @@ export function DailyAffirmationCard() {
       const result = await generateDailyAffirmation({
         loggedData: loggedDataSummary,
         currentDate: todayStr,
-        // Astrological events could be fetched from an API or a placeholder
         astrologicalEvents: "Consider general positive energies for today." 
       });
       const newAffirmation = { date: todayStr, text: result.affirmation };
@@ -46,24 +45,24 @@ export function DailyAffirmationCard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [logEntries, todayStr, setAffirmation, toast]);
 
   useEffect(() => {
+    setCurrentDateDisplay(format(new Date(), "EEEE, MMMM do"));
     if (!affirmation || affirmation.date !== todayStr) {
       fetchAffirmation();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayStr]); // Only re-run if date changes or affirmation is null initially
+  }, [todayStr, affirmation, fetchAffirmation]);
 
   return (
     <Card className="w-full max-w-xl mx-auto bg-card/80 backdrop-blur-sm shadow-2xl shadow-primary/30">
-      <CardHeader className="flex flex-row justify-between items-center">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-3xl font-handwritten text-accent">
+      <CardHeader className="flex flex-row justify-between items-start">
+        <div className="flex flex-col">
+          <CardTitle className="flex items-center gap-2 text-3xl font-handwritten text-accent mb-1">
             <MessageSquareHeart className="h-8 w-8" />
             Daily Affirmation
           </CardTitle>
-          <CardDescription>{format(new Date(), "EEEE, MMMM do")}</CardDescription>
+          <CardDescription>{currentDateDisplay}</CardDescription>
         </div>
         <Button variant="ghost" size="icon" onClick={() => fetchAffirmation(true)} disabled={isLoading} aria-label="Refresh affirmation">
           {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}

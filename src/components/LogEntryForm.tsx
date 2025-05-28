@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,7 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const formSchema = z.object({
   angelNumber: z.string()
     .min(1, { message: "Angel number is required." })
-    .regex(/^(\d{1,4}|(?:one|two|three|four|five|six|seven|eight|nine|zero)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine|zero)){0,3})$/i, 
+    .regex(/^(?:\d{1,4}|(?:one|two|three|four|five|six|seven|eight|nine|zero)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine|zero)){0,3})$/i, 
       { message: "Enter digits (e.g., 111) or text (e.g., one-one-one)." }
     ),
   emotion: z.enum(emotions, { required_error: "Emotion is required." }),
@@ -125,7 +124,6 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         return;
     }
     
-    // Update form value with processed number for consistency if it was text
     if (values.angelNumber !== processedNumber) {
         form.setValue("angelNumber", processedNumber);
     }
@@ -133,7 +131,6 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
 
     try {
       const numberAsInt = parseInt(processedNumber, 10);
-      // Already validated by convertAngelNumberInput and regex, but good to have a final check
       if (isNaN(numberAsInt)) {
         toast({ title: "Error", description: "Invalid angel number after processing.", variant: "destructive" });
         setIsLoadingInterpretation(false);
@@ -151,12 +148,12 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       const newEntry: LogEntry = {
         id: existingEntry?.id || crypto.randomUUID(),
         timestamp: existingEntry?.timestamp || new Date().toISOString(),
-        angelNumber: processedNumber, // Use processed number
+        angelNumber: processedNumber,
         emotion: values.emotion,
         activity: values.activity,
         notes: values.notes,
         mood: values.mood,
-        interpretation: interpretationData, // Store the full object
+        interpretation: interpretationData,
       };
       onLogEntry(newEntry);
       toast({ title: "Entry Logged", description: "Your angel number sighting has been logged and interpreted." });
@@ -176,17 +173,11 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     setIsLoadingSpokenInsight(true);
     setSpokenInsightText(null);
     try {
-      // The generateSpokenInsight flow might need to be updated if it should also use the structured interpretation.
-      // For now, we'll pass the core message or a relevant part.
-      // The specification for Spoken Insights Engine mentions: "Play button to hear the interpretation".
-      // This implies the spoken insight should be based on the generated interpretation.
-      // Let's assume for now the flow can take the textual parts of the interpretation.
-      // We'll use `theMessage` as a primary component for spoken insight.
       const spokenData = await generateSpokenInsight({
-        number: form.getValues("angelNumber"), // Still needed for context if the flow uses it
-        emotion: form.getValues("emotion"),   // Still needed for context
-        activity: form.getValues("activity"), // Still needed for context
-        notes: interpretationResult.theMessage + (interpretationResult.spiritualSignificance ? " " + interpretationResult.spiritualSignificance : ""), // Pass main parts of interpretation
+        number: form.getValues("angelNumber"),
+        emotion: form.getValues("emotion"),
+        activity: form.getValues("activity"),
+        notes: interpretationResult.theMessage + (interpretationResult.spiritualSignificance ? " " + interpretationResult.spiritualSignificance : ""),
         language: selectedLanguage,
         voiceStyle: selectedVoiceStyle,
       });
@@ -236,7 +227,6 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       form.setValue("notes", text);
       setNoteCharCount(text.length);
     } else {
-      // Optionally, prevent typing more or trim, currently schema validation handles alert
       form.setValue("notes", text.substring(0,1000));
       setNoteCharCount(1000);
     }
@@ -263,7 +253,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                   <FormItem>
                     <FormLabel>Angel Number (e.g., 111 or one-one-one)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter number sequence" {...field} className="bg-cosmic-black text-celestial-silver border-starlight-gold" />
+                      <Input placeholder="Enter number (e.g., 111 or one-one-one)" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -277,11 +267,11 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                     <FormLabel>Your Emotion</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your emotion" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-cosmic-indigo text-celestial-silver">
+                      <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                         <ScrollArea className="h-[200px]">
                           {emotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                         </ScrollArea>
@@ -299,11 +289,11 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                     <FormLabel>Your Activity</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your activity" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-cosmic-indigo text-celestial-silver">
+                      <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                          <ScrollArea className="h-[200px]">
                           {activities.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                         </ScrollArea>
@@ -321,11 +311,11 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                     <FormLabel>Overall Mood (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your mood" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                         {moods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -345,7 +335,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                       placeholder="Any additional thoughts or context..." 
                       {...field} 
                       onChange={handleNotesChange}
-                      className="bg-cosmic-black text-celestial-silver border-starlight-gold" />
+                      className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70" />
                   </FormControl>
                   <div className="text-xs text-muted-foreground text-right pr-1">{noteCharCount}/1000 characters</div>
                   <FormMessage />
@@ -353,7 +343,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
               )}
             />
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoadingInterpretation}>
-              {isLoadingInterpretation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :  <Sparkles className="mr-2 h-4 w-4" /> /* Using Sparkles as 🔮 not available */}
+              {isLoadingInterpretation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :  <Sparkles className="mr-2 h-4 w-4" />}
               Decode
             </Button>
           </form>
@@ -366,33 +356,33 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
           {isLoadingInterpretation && <div className="flex items-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating wisdom...</div>}
           
           {interpretationResult && !isLoadingInterpretation && (
-             <ScrollArea className="h-64 w-full rounded-md border border-border p-4 bg-cosmic-black/80 text-celestial-silver space-y-3">
+             <ScrollArea className="h-64 w-full rounded-md border border-border p-4 bg-[rgba(6,3,15,0.8)] text-foreground space-y-3">
               <div>
-                <h4 className="font-bold text-starlight-gold">The Message:</h4>
+                <h4 className="font-bold text-accent">The Message:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.theMessage}</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Spiritual Significance:</h4>
+                <h4 className="font-bold text-accent">Spiritual Significance:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.spiritualSignificance}</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Ancient Wisdom:</h4>
+                <h4 className="font-bold text-accent">Ancient Wisdom:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.ancientWisdom}</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Context:</h4>
+                <h4 className="font-bold text-accent">Context:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.context}</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Quote:</h4>
+                <h4 className="font-bold text-accent">Quote:</h4>
                 <p className="whitespace-pre-wrap italic">&ldquo;{interpretationResult.quote}&rdquo;</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Metaphor:</h4>
+                <h4 className="font-bold text-accent">Metaphor:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.metaphor}</p>
               </div>
               <div>
-                <h4 className="font-bold text-starlight-gold">Reflection Question:</h4>
+                <h4 className="font-bold text-accent">Reflection Question:</h4>
                 <p className="whitespace-pre-wrap">{interpretationResult.reflectionQuestion}</p>
               </div>
             </ScrollArea>
@@ -410,8 +400,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                   <FormItem>
                     <FormLabel>Language</FormLabel>
                     <Select value={selectedLanguage} onValueChange={(val: Language) => setSelectedLanguage(val)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                         {languages.map(lang => <SelectItem key={lang} value={lang}>{lang}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -419,8 +409,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                   <FormItem>
                     <FormLabel>Voice Style</FormLabel>
                      <Select value={selectedVoiceStyle} onValueChange={(val: VoiceStyle) => setSelectedVoiceStyle(val)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                         {voiceStyles.map(style => <SelectItem key={style} value={style}>{style}</SelectItem>)}
                       </SelectContent>
                     </Select>

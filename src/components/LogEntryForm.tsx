@@ -23,14 +23,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, Loader2, Mic, Sparkles, Volume2, BookOpen, LanguagesIcon } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { ChevronDown, ChevronUp, Loader2, Mic, Sparkles, Volume2, BookOpen, LanguagesIcon, Wand2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { LogEntry, Emotion, Activity as ActivityType, Mood, Language, VoiceStyle } from "@/lib/types";
 import { emotions, activities, moods, languages, voiceStyles, languageCodes } from "@/lib/types";
 import { interpretAngelNumber, type InterpretAngelNumberOutput } from "@/ai/flows/interpret-angel-number";
 import { generateSpokenInsight } from "@/ai/flows/generate-spoken-insight";
+import { polishNote } from "@/ai/flows/polish-note-flow";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// For conceptual i18n demonstration
+const uiText: Record<Language, { angelNumberLabel: string, notesLabel: string, decodeButton: string }> = {
+  English: { angelNumberLabel: "Angel Number", notesLabel: "Notes (Optional)", decodeButton: "Decode 🔮" },
+  Bengali: { angelNumberLabel: "অ্যাঞ্জেল নম্বর", notesLabel: "নোট (ঐচ্ছিক)", decodeButton: "ডিকোড করুন 🔮" },
+  Hindi: { angelNumberLabel: "एंजेल नंबर", notesLabel: "टिप्पणियाँ (वैकल्पिक)", decodeButton: "डिकोड करें 🔮" },
+};
 
 const formSchema = z.object({
   angelNumber: z.string()
@@ -38,11 +46,11 @@ const formSchema = z.object({
     .regex(/^(?:\d{1,4}|(?:one|two|three|four|five|six|seven|eight|nine|zero)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine|zero)){0,3})$/i, 
       { message: "Enter digits (e.g., 111) or text (e.g., one-one-one)." }
     ),
+  interpretationLanguage: z.enum(languages, { required_error: "Interpretation language is required."}),
   emotion: z.enum(emotions, { required_error: "Emotion is required." }),
   activity: z.enum(activities, { required_error: "Activity is required." }),
   notes: z.string().max(1000, { message: "Note cannot exceed 1000 characters." }).optional(),
   mood: z.enum(moods).optional(),
-  interpretationLanguage: z.enum(languages, { required_error: "Interpretation language is required."}),
 });
 
 type LogEntryFormValues = z.infer<typeof formSchema>;
@@ -72,16 +80,26 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const { toast } = useToast();
   const [isLoadingInterpretation, setIsLoadingInterpretation] = useState(false);
   const [isLoadingSpokenInsight, setIsLoadingSpokenInsight] = useState(false);
+  const [isLoadingPolishNote, setIsLoadingPolishNote] = useState(false);
   const [interpretationResult, setInterpretationResult] = useState<InterpretAngelNumberOutput | null>(existingEntry?.interpretation ?? null);
-  const [currentInterpretationLanguage, setCurrentInterpretationLanguage] = useState<Language>(existingEntry?.interpretationLanguage || 'English');
-  const [spokenInsightText, setSpokenInsightText] = useState<string | null>(existingEntry?.spokenInsightText ?? null);
   
+  const [selectedInterpretationLanguage, setSelectedInterpretationLanguage] = useState<Language>(existingEntry?.interpretationLanguage || 'English');
   const [selectedSpokenLanguage, setSelectedSpokenLanguage] = useState<Language>(existingEntry?.spokenInsightLanguage || languages[0]);
   const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>(voiceStyles[0]);
+
+  const [spokenInsightText, setSpokenInsightText] = useState<string | null>(existingEntry?.spokenInsightText ?? null);
+  
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [noteCharCount, setNoteCharCount] = useState(existingEntry?.notes?.length || 0);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  const [isListeningAngelNumber, setIsListeningAngelNumber] = useState(false);
+  const angelNumberRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const [isListeningNotes, setIsListeningNotes] = useState(false);
+  const notesRecognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const [currentUiLanguage, setCurrentUiLanguage] = useState<Language>('English');
+  const [currentUiText, setCurrentUiText] = useState(uiText.English);
+
 
   const form = useForm<LogEntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -94,15 +112,25 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       interpretationLanguage: existingEntry.interpretationLanguage || 'English',
     } : {
       angelNumber: "",
+      interpretationLanguage: 'English',
       emotion: undefined,
       activity: undefined,
       notes: "",
       mood: undefined,
-      interpretationLanguage: 'English',
     },
   });
 
   useEffect(() => {
+    // Load global language preference
+    const globalLang = localStorage.getItem('whisperlog_language') as Language;
+    if (languages.includes(globalLang)) {
+      setCurrentUiLanguage(globalLang);
+      setCurrentUiText(uiText[globalLang] || uiText.English);
+      form.setValue("interpretationLanguage", globalLang); // Set default for new entries
+      setSelectedInterpretationLanguage(globalLang);
+      setSelectedSpokenLanguage(globalLang); // Default spoken to global
+    }
+
     if (existingEntry) {
       form.reset({
         angelNumber: existingEntry.angelNumber,
@@ -110,66 +138,111 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         activity: existingEntry.activity,
         notes: existingEntry.notes || "",
         mood: existingEntry.mood,
-        interpretationLanguage: existingEntry.interpretationLanguage || 'English',
+        interpretationLanguage: existingEntry.interpretationLanguage || globalLang || 'English',
       });
       setInterpretationResult(existingEntry.interpretation ?? null);
-      setCurrentInterpretationLanguage(existingEntry.interpretationLanguage || 'English');
+      setSelectedInterpretationLanguage(existingEntry.interpretationLanguage || globalLang || 'English');
       setSpokenInsightText(existingEntry.spokenInsightText ?? null);
-      setSelectedSpokenLanguage(existingEntry.spokenInsightLanguage || (existingEntry.interpretationLanguage || 'English'));
+      setSelectedSpokenLanguage(existingEntry.spokenInsightLanguage || existingEntry.interpretationLanguage || globalLang || 'English');
       setNoteCharCount(existingEntry.notes?.length || 0);
+    } else {
+      // For new entries, ensure interpretationLanguage is set from global or default
+      const defaultLang = globalLang || 'English';
+      form.setValue("interpretationLanguage", defaultLang);
+      setSelectedInterpretationLanguage(defaultLang);
+      setSelectedSpokenLanguage(defaultLang);
     }
-  }, [existingEntry, form]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingEntry, form.reset, form.setValue]);
 
-  useEffect(() => {
+
+  const initializeRecognition = useCallback((
+    recognitionRef: React.MutableRefObject<SpeechRecognition | null>,
+    onResult: (transcript: string) => void,
+    lang?: string
+  ) => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US'; 
+      recognitionRef.current.lang = lang || languageCodes[currentUiLanguage] || 'en-US';
 
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[event.results.length -1][0].transcript.trim();
-        const numericTranscript = convertAngelNumberInput(transcript);
-        if (numericTranscript) {
-          form.setValue("angelNumber", numericTranscript);
-        } else {
-           const spokenWords = transcript.toLowerCase().split(/[\s-]+/);
-           const mappedNumbers = spokenWords.map(word => textToNumberMapping[word] || word).join("");
-            if (/^\d{1,4}$/.test(mappedNumbers)) {
-                 form.setValue("angelNumber", mappedNumbers);
-            } else {
-                toast({ title: "Speech Recognition", description: `Could not convert "${transcript}" to a valid number. Please try again or type manually.`, variant: "destructive" });
-            }
-        }
-        setIsListening(false);
+        onResult(transcript);
       };
       recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error', event.error);
-        let errorMessage = "Speech recognition error. Please try again.";
+        let errorMessage = "Speech recognition error.";
         if (event.error === 'no-speech') errorMessage = "No speech detected.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone error.";
         else if (event.error === 'not-allowed') errorMessage = "Microphone access denied.";
         toast({ title: "Speech Recognition Error", description: errorMessage, variant: "destructive" });
-        setIsListening(false);
       };
-      recognitionRef.current.onend = () => setIsListening(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.setValue, toast]);
+  }, [currentUiLanguage, toast]);
+  
+  useEffect(() => {
+    initializeRecognition(angelNumberRecognitionRef, (transcript) => {
+      const numericTranscript = convertAngelNumberInput(transcript);
+      if (numericTranscript) {
+        form.setValue("angelNumber", numericTranscript);
+      } else {
+        const spokenWords = transcript.toLowerCase().split(/[\s-]+/);
+        const mappedNumbers = spokenWords.map(word => textToNumberMapping[word] || word).join("");
+        if (/^\d{1,4}$/.test(mappedNumbers)) {
+          form.setValue("angelNumber", mappedNumbers);
+        } else {
+          toast({ title: "Speech Recognition", description: `Could not convert "${transcript}" to a valid number.`, variant: "destructive" });
+        }
+      }
+      setIsListeningAngelNumber(false);
+    }, 'en-US'); // Angel numbers are typically numeric, so 'en-US' is fine for processing
 
-  const handleMicClick = () => {
+    initializeRecognition(notesRecognitionRef, async (transcript) => {
+        setIsListeningNotes(false);
+        setIsLoadingPolishNote(true);
+        try {
+            const { polishedNote } = await polishNote({ rawNote: transcript });
+            form.setValue("notes", polishedNote);
+            setNoteCharCount(polishedNote.length);
+            toast({ title: "Note Polished", description: "Your spoken note has been refined." });
+        } catch (error) {
+            console.error("Error polishing note:", error);
+            toast({ title: "Note Polishing Error", description: "Could not polish the note. Using raw input.", variant: "destructive" });
+            form.setValue("notes", transcript); // Fallback to raw transcript
+            setNoteCharCount(transcript.length);
+        } finally {
+            setIsLoadingPolishNote(false);
+        }
+    }, languageCodes[currentUiLanguage] || 'en-US'); // For notes, use the UI language
+
+    return () => {
+        angelNumberRecognitionRef.current?.abort();
+        notesRecognitionRef.current?.abort();
+    }
+  }, [initializeRecognition, form, toast, currentUiLanguage]);
+
+
+  const handleMicClick = (
+    recognitionRef: React.MutableRefObject<SpeechRecognition | null>,
+    isListening: boolean,
+    setIsListening: React.Dispatch<React.SetStateAction<boolean>>,
+    listeningToastTitle: string
+  ) => {
     if (!recognitionRef.current) {
-      toast({ title: "Unsupported", description: "Speech recognition not available on this device.", variant: "destructive" });
+      toast({ title: "Unsupported", description: "Speech recognition not available.", variant: "destructive" });
       return;
     }
     if (isListening) {
       recognitionRef.current.stop();
+      setIsListening(false);
     } else {
       try {
         recognitionRef.current.start();
         setIsListening(true);
-        toast({ title: "Listening...", description: "Please say the angel number." });
+        toast({ title: listeningToastTitle, description: "Please speak clearly." });
       } catch (e) {
          toast({ title: "Speech Error", description: "Could not start listening. Check mic permissions.", variant: "destructive" });
          setIsListening(false);
@@ -177,31 +250,22 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     }
   };
 
+
   async function onSubmit(values: LogEntryFormValues) {
     setIsLoadingInterpretation(true);
     setInterpretationResult(null);
     setSpokenInsightText(null);
-    setCurrentInterpretationLanguage(values.interpretationLanguage); // Store the language used for this interpretation
-
+    
     const processedNumber = convertAngelNumberInput(values.angelNumber);
     if (!processedNumber) {
         form.setError("angelNumber", { type: "manual", message: "Invalid angel number format." });
         setIsLoadingInterpretation(false);
         return;
     }
-    
-    if (values.angelNumber !== processedNumber) {
-        form.setValue("angelNumber", processedNumber);
-    }
+    if (values.angelNumber !== processedNumber) form.setValue("angelNumber", processedNumber);
 
     try {
       const numberAsInt = parseInt(processedNumber, 10);
-      if (isNaN(numberAsInt)) {
-        toast({ title: "Error", description: "Invalid angel number.", variant: "destructive" });
-        setIsLoadingInterpretation(false);
-        return;
-      }
-
       const interpretationData = await interpretAngelNumber({
         number: numberAsInt,
         emotion: values.emotion,
@@ -210,7 +274,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         targetLanguage: values.interpretationLanguage,
       });
       setInterpretationResult(interpretationData);
-      setSelectedSpokenLanguage(values.interpretationLanguage); // Default spoken language to interpretation language
+      setSelectedInterpretationLanguage(values.interpretationLanguage);
+      setSelectedSpokenLanguage(values.interpretationLanguage); // Default spoken to interpretation lang
 
       const newEntry: LogEntry = {
         id: existingEntry?.id || crypto.randomUUID(),
@@ -222,6 +287,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         mood: values.mood,
         interpretationLanguage: values.interpretationLanguage,
         interpretation: interpretationData,
+        spokenInsightLanguage: values.interpretationLanguage, // Default
       };
       onLogEntry(newEntry);
       toast({ title: "Entry Logged", description: `Sighting logged & interpreted in ${values.interpretationLanguage}.` });
@@ -243,7 +309,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     try {
       const spokenData = await generateSpokenInsight({
         interpretationContent: interpretationResult,
-        sourceLanguage: currentInterpretationLanguage, // Language of the existing text interpretation
+        sourceLanguage: selectedInterpretationLanguage, // Language of the existing text interpretation
         targetLanguage: selectedSpokenLanguage,   // Target language for speech
         voiceStyle: selectedVoiceStyle,
       });
@@ -254,12 +320,12 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       const updatedEntry: LogEntry = {
         id: existingEntry?.id || crypto.randomUUID(), 
         timestamp: existingEntry?.timestamp || new Date().toISOString(),
-        angelNumber: currentValues.angelNumber,
+        angelNumber: convertAngelNumberInput(currentValues.angelNumber),
         emotion: currentValues.emotion,
         activity: currentValues.activity,
         notes: currentValues.notes,
         mood: currentValues.mood,
-        interpretationLanguage: currentInterpretationLanguage,
+        interpretationLanguage: selectedInterpretationLanguage,
         interpretation: interpretationResult,
         spokenInsightText: spokenData.spokenInsight,
         spokenInsightLanguage: selectedSpokenLanguage,
@@ -313,13 +379,13 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 name="angelNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground/90">Angel Number</FormLabel>
+                    <FormLabel className="text-foreground/90">{currentUiText.angelNumberLabel}</FormLabel>
                     <div className="flex items-center gap-2">
                       <FormControl>
                         <Input placeholder="e.g., 111 or one-one-one" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 flex-grow" />
                       </FormControl>
-                       <Button type="button" variant="outline" size="icon" onClick={handleMicClick} className={`border-accent text-accent hover:bg-accent/10 ${isListening ? 'bg-accent/20 animate-pulse' : ''}`} aria-label="Use microphone">
-                        <Mic className={`h-5 w-5 ${isListening ? 'text-destructive' : ''}`} />
+                       <Button type="button" variant="outline" size="icon" onClick={() => handleMicClick(angelNumberRecognitionRef, isListeningAngelNumber, setIsListeningAngelNumber, "Listening for Angel Number...")} className={`border-accent text-accent hover:bg-accent/10 ${isListeningAngelNumber ? 'bg-accent/20 animate-pulse' : ''}`} aria-label="Use microphone for angel number">
+                        <Mic className={`h-5 w-5 ${isListeningAngelNumber ? 'text-destructive' : ''}`} />
                       </Button>
                     </div>
                     <FormMessage />
@@ -332,7 +398,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-foreground/90">Interpretation Language</FormLabel>
-                    <Select onValueChange={(value: Language) => {field.onChange(value); setCurrentInterpretationLanguage(value);}} defaultValue={field.value}>
+                    <Select onValueChange={(value: Language) => {field.onChange(value); setSelectedInterpretationLanguage(value);}} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select language" />
@@ -394,7 +460,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 control={form.control}
                 name="mood"
                 render={({ field }) => (
-                  <FormItem className="md:col-span-2"> {/* Span across two columns on medium screens */}
+                  <FormItem className="md:col-span-2">
                     <FormLabel className="text-foreground/90">Overall Mood (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
@@ -416,22 +482,27 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/90">Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Any additional thoughts or context..." 
-                      {...field} 
-                      onChange={handleNotesChange}
-                      className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 min-h-[100px]" />
-                  </FormControl>
+                  <FormLabel className="text-foreground/90">{currentUiText.notesLabel}</FormLabel>
+                   <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Any additional thoughts or context..." 
+                        {...field} 
+                        onChange={handleNotesChange}
+                        className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 min-h-[100px] flex-grow" />
+                    </FormControl>
+                     <Button type="button" variant="outline" size="icon" onClick={() => handleMicClick(notesRecognitionRef, isListeningNotes, setIsListeningNotes, "Listening for Notes...")} className={`border-accent text-accent hover:bg-accent/10 self-start ${isListeningNotes ? 'bg-accent/20 animate-pulse' : ''}`} aria-label="Use microphone for notes">
+                       {isLoadingPolishNote ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className={`h-5 w-5 ${isListeningNotes ? 'text-destructive' : ''}`} />}
+                      </Button>
+                  </div>
                   <div className="text-xs text-muted-foreground text-right pr-1">{noteCharCount}/1000</div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-handwritten tracking-wider" disabled={isLoadingInterpretation}>
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-handwritten tracking-wider" disabled={isLoadingInterpretation || isLoadingPolishNote}>
               {isLoadingInterpretation ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> :  <Sparkles className="mr-2 h-5 w-5" />}
-              Decode <span className="text-xl ml-1">🔮</span>
+              {currentUiText.decodeButton}
             </Button>
           </form>
         </Form>
@@ -440,47 +511,47 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       {(interpretationResult || isLoadingInterpretation) && (
         <CardFooter className="flex flex-col items-start gap-4 pt-6 border-t border-border/50 mt-4">
           <h3 className="text-2xl font-handwritten text-accent flex items-center gap-2">
-            <Sparkles className="h-6 w-6"/>
+            <Wand2 className="h-6 w-6"/>
             WhisperLog Interpretation
           </h3>
           {isLoadingInterpretation && <div className="flex items-center text-muted-foreground self-center py-4"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Generating wisdom in {form.getValues("interpretationLanguage")}...</div>}
           
           {interpretationResult && !isLoadingInterpretation && (
-             <ScrollArea className="h-72 w-full rounded-md border border-accent/50 p-4 bg-[rgba(6,3,15,0.85)] text-foreground/90 shadow-inner shadow-accent/20">
+             <ScrollArea className="h-auto max-h-[30rem] w-full rounded-md border border-accent/50 p-4 bg-[rgba(6,3,15,0.85)] text-foreground/90 shadow-inner shadow-accent/20">
               <div className="space-y-4">
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">The Message:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.theMessage}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.theMessage}</p>
                 </div>
                 <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Spiritual Significance:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.spiritualSignificance}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.spiritualSignificance}</p>
                 </div>
                  <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Ancient Wisdom:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.ancientWisdom}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.ancientWisdom}</p>
                 </div>
                  <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Context:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.context}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.context}</p>
                 </div>
                  <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Quote:</h4>
-                  <p className="whitespace-pre-wrap italic pl-2">&ldquo;{interpretationResult.quote}&rdquo;</p>
+                  <p className="whitespace-pre-wrap italic pl-2 text-sm leading-relaxed">&ldquo;{interpretationResult.quote}&rdquo;</p>
                 </div>
                  <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Metaphor:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.metaphor}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.metaphor}</p>
                 </div>
                  <hr className="border-accent/20 my-3"/>
                 <div>
                   <h4 className="font-bold text-accent/90 font-handwritten text-xl">Reflection Question:</h4>
-                  <p className="whitespace-pre-wrap pl-2">{interpretationResult.reflectionQuestion}</p>
+                  <p className="whitespace-pre-wrap pl-2 text-sm leading-relaxed">{interpretationResult.reflectionQuestion}</p>
                 </div>
               </div>
             </ScrollArea>
@@ -536,7 +607,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                   <Volume2 className="mr-2 h-4 w-4" /> Play Insight
                 </Button>
               </div>
-              {isLoadingSpokenInsight && <div className="flex items-center text-muted-foreground self-center py-2"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Crafting audio experience in {selectedSpokenLanguage}...</div>}
+              {isLoadingSpokenInsight && <div className="flex items-center text-muted-foreground self-center py-2"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Crafting audio in {selectedSpokenLanguage}...</div>}
               {spokenInsightText && !isLoadingSpokenInsight && (
                 <ScrollArea className="h-24 w-full rounded-md border border-border/50 p-3 bg-background/60 mt-2">
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{spokenInsightText}</p>

@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark"> {/* Force dark theme based on globals.css */}
+    <html lang="en" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} antialiased`}>
         <Providers>
           <main className="min-h-screen flex flex-col">

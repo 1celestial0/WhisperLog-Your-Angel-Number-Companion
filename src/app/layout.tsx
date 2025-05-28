@@ -1,5 +1,5 @@
 
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Caveat } from 'next/font/google';
 import './globals.css';
@@ -32,12 +32,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (<html lang="en" className="dark"><body className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} antialiased`}>
+  return (
+    <html lang="en" className="dark">
+      <body className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} antialiased`}>
         <Providers>
           <main className="min-h-screen flex flex-col">
             {children}
           </main>
           <Toaster />
         </Providers>
-      </body></html>);
+      </body>
+    </html>
+  );
 }

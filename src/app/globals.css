@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,81 +16,40 @@ body {
     --background: 267 70% 12%; /* Deep Purple #1A0933 */
     --foreground: 258 60% 91%; /* Light Lavender #E0D9F6 */
 
-    --card: 267 65% 18%;
+    --card: 267 65% 18%; /* Slightly lighter purple for cards */
     --card-foreground: 258 60% 91%;
 
-    --popover: 267 60% 15%;
+    --popover: 267 60% 15%; /* Darker popover for contrast */
     --popover-foreground: 258 60% 91%;
 
     --primary: 258 54% 51%; /* Violet #6B46C1 */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 258 40% 40%; /* Darker Violet */
+    --secondary: 258 40% 40%; /* Darker Violet for secondary elements */
     --secondary-foreground: 258 60% 91%;
 
-    --muted: 267 50% 25%;
-    --muted-foreground: 258 40% 70%;
+    --muted: 267 50% 25%; /* Muted purple */
+    --muted-foreground: 258 40% 70%; /* Lighter lavender for muted text */
 
     --accent: 40 100% 74%; /* Starlight Gold #FFD27D */
     --accent-foreground: 267 70% 12%; /* Deep Purple for text on gold */
 
-    --destructive: 0 72% 51%; /* Adjusted for visibility on dark bg */
+    --destructive: 0 72% 51%; 
     --destructive-foreground: 0 0% 100%;
 
-    --border: 258 50% 30%;
-    --input: 258 50% 22%;
+    --border: 258 50% 30%; /* Purple border */
+    --input: 258 50% 22%; /* Dark purple for input background */
     --ring: 40 100% 74%; /* Starlight Gold for focus rings */
 
     --radius: 0.5rem;
 
-    /* Chart colors adjusted for dark theme */
-    --chart-1: 258 54% 51%; /* primary */
-    --chart-2: 40 100% 74%;  /* accent */
-    --chart-3: 220 70% 65%; /* Lighter blue */
-    --chart-4: 300 60% 60%; /* Magenta */
-    --chart-5: 150 50% 55%; /* Tealish green */
+    --chart-1: 258 54% 51%; 
+    --chart-2: 40 100% 74%;  
+    --chart-3: 220 70% 65%; 
+    --chart-4: 300 60% 60%; 
+    --chart-5: 150 50% 55%; 
 
-    /* Sidebar colors to match the theme */
-    --sidebar-background: 267 70% 10%; /* Slightly darker than main bg */
-    --sidebar-foreground: 258 60% 85%;
-    --sidebar-primary: 258 54% 51%; /* Violet */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 100% 74%; /* Starlight Gold */
-    --sidebar-accent-foreground: 267 70% 12%;
-    --sidebar-border: 258 50% 25%;
-    --sidebar-ring: 40 100% 74%;
-  }
-
-  /* Retain .dark class for potential future use or components that rely on it,
-     but make it inherit from the default dark theme defined above. */
-  .dark {
-    --background: 267 70% 12%;
-    --foreground: 258 60% 91%;
-    --card: 267 65% 18%;
-    --card-foreground: 258 60% 91%;
-    --popover: 267 60% 15%;
-    --popover-foreground: 258 60% 91%;
-    --primary: 258 54% 51%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 258 40% 40%;
-    --secondary-foreground: 258 60% 91%;
-    --muted: 267 50% 25%;
-    --muted-foreground: 258 40% 70%;
-    --accent: 40 100% 74%;
-    --accent-foreground: 267 70% 12%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 258 50% 30%;
-    --input: 258 50% 22%;
-    --ring: 40 100% 74%;
-    
-    --chart-1: 258 54% 51%;
-    --chart-2: 40 100% 74%;
-    --chart-3: 220 70% 65%;
-    --chart-4: 300 60% 60%;
-    --chart-5: 150 50% 55%;
-
-    --sidebar-background: 267 70% 10%;
+    --sidebar-background: 267 70% 10%; 
     --sidebar-foreground: 258 60% 85%;
     --sidebar-primary: 258 54% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -97,6 +57,10 @@ body {
     --sidebar-accent-foreground: 267 70% 12%;
     --sidebar-border: 258 50% 25%;
     --sidebar-ring: 40 100% 74%;
+  }
+  
+  .dark {
+    /* All variables are defined in :root, .dark inherits them */
   }
 }
 
@@ -106,10 +70,51 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Enhanced Cosmic Background */
     background-image: 
-      radial-gradient(ellipse at 70% 20%, hsla(280, 50%, 40%, 0.3), transparent 60%),
-      radial-gradient(ellipse at 20% 80%, hsla(240, 60%, 35%, 0.35), transparent 60%),
-      radial-gradient(ellipse at 50% 50%, hsla(260, 70%, 20%, 0.2), transparent 70%);
+      /* Starfield */
+      radial-gradient(1px 1px at 20px 30px, hsl(var(--accent) / 0.3), transparent),
+      radial-gradient(1px 1px at 40px 70px, hsl(var(--foreground) / 0.2), transparent),
+      radial-gradient(1.5px 1.5px at 50px 160px, hsl(var(--accent) / 0.4), transparent),
+      radial-gradient(1px 1px at 90px 40px, hsl(var(--foreground) / 0.25), transparent),
+      radial-gradient(1.5px 1.5px at 130px 80px, hsl(var(--accent) / 0.3), transparent),
+      radial-gradient(1px 1px at 160px 120px, hsl(var(--foreground) / 0.2), transparent),
+      /* Nebulas */
+      radial-gradient(ellipse at 70% 20%, hsla(280, 50%, 40%, 0.4), transparent 70%), /* Nebula glow 1 */
+      radial-gradient(ellipse at 20% 80%, hsla(240, 60%, 35%, 0.45), transparent 70%), /* Nebula glow 2 */
+      radial-gradient(ellipse at 50% 50%, hsla(260, 70%, 20%, 0.3), transparent 80%), /* Central depth */
+      /* Base color */
+      linear-gradient(hsl(var(--background)), hsl(var(--background)));
     background-attachment: fixed;
+    animation: pulse-nebula 20s infinite alternate ease-in-out;
+  }
+}
+
+@keyframes pulse-nebula {
+  0% {
+    background-image: 
+      radial-gradient(1px 1px at 20px 30px, hsl(var(--accent) / 0.3), transparent),
+      radial-gradient(1px 1px at 40px 70px, hsl(var(--foreground) / 0.2), transparent),
+      radial-gradient(1.5px 1.5px at 50px 160px, hsl(var(--accent) / 0.4), transparent),
+      radial-gradient(1px 1px at 90px 40px, hsl(var(--foreground) / 0.25), transparent),
+      radial-gradient(1.5px 1.5px at 130px 80px, hsl(var(--accent) / 0.3), transparent),
+      radial-gradient(1px 1px at 160px 120px, hsl(var(--foreground) / 0.2), transparent),
+      radial-gradient(ellipse at 70% 20%, hsla(280, 50%, 40%, 0.35), transparent 70%),
+      radial-gradient(ellipse at 20% 80%, hsla(240, 60%, 35%, 0.40), transparent 70%),
+      radial-gradient(ellipse at 50% 50%, hsla(260, 70%, 20%, 0.25), transparent 80%),
+      linear-gradient(hsl(var(--background)), hsl(var(--background)));
+  }
+  100% {
+    background-image: 
+      radial-gradient(1.5px 1.5px at 25px 35px, hsl(var(--accent) / 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 45px 75px, hsl(var(--foreground) / 0.25), transparent),
+      radial-gradient(2px 2px at 55px 165px, hsl(var(--accent) / 0.45), transparent),
+      radial-gradient(1.5px 1.5px at 95px 45px, hsl(var(--foreground) / 0.3), transparent),
+      radial-gradient(2px 2px at 135px 85px, hsl(var(--accent) / 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 165px 125px, hsl(var(--foreground) / 0.25), transparent),
+      radial-gradient(ellipse at 65% 25%, hsla(280, 50%, 40%, 0.45), transparent 70%),
+      radial-gradient(ellipse at 25% 75%, hsla(240, 60%, 35%, 0.50), transparent 70%),
+      radial-gradient(ellipse at 45% 55%, hsla(260, 70%, 20%, 0.35), transparent 80%),
+      linear-gradient(hsl(var(--background)), hsl(var(--background)));
   }
 }

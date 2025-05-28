@@ -10,15 +10,25 @@ export const activities: Activity[] = ['Meditating', 'Working', 'Driving', 'Read
 export type Mood = 'Excellent' | 'Good' | 'Okay' | 'Bad' | 'Terrible';
 export const moods: Mood[] = ['Excellent', 'Good', 'Okay', 'Bad', 'Terrible'];
 
+export type Language = 'English' | 'Bengali' | 'Hindi';
+export const languages: Language[] = ['English', 'Bengali', 'Hindi'];
+export const languageCodes: Record<Language, string> = {
+  English: 'en-US',
+  Bengali: 'bn-IN', // Bengali (India)
+  Hindi: 'hi-IN',   // Hindi (India)
+};
+
 export interface LogEntry {
   id: string;
   timestamp: string; // ISO string
-  angelNumber: string; // Keep as string for sequences like "1111"
+  angelNumber: string; 
   emotion: Emotion;
   activity: Activity;
   notes?: string;
-  interpretation?: InterpretAngelNumberOutput; // Updated to new structured type
-  spokenInsightText?: string; // Text generated for speech
+  interpretationLanguage?: Language; // Language of the textual interpretation
+  interpretation?: InterpretAngelNumberOutput;
+  spokenInsightText?: string; 
+  spokenInsightLanguage?: Language; // Language of the generated spoken insight
   mood?: Mood; 
 }
 
@@ -27,20 +37,9 @@ export interface DailyAffirmation {
   text: string;
 }
 
-export type Language = 'English' | 'Bengali' | 'Hindi';
-export const languages: Language[] = ['English', 'Bengali', 'Hindi'];
-export const languageCodes: Record<Language, string> = {
-  English: 'en-US',
-  Bengali: 'bn-IN',
-  Hindi: 'hi-IN',
-};
-
 export type VoiceStyle = 'Divine Feminine' | 'Cosmic Neutral' | 'Sacred Masculine' | 'Calm' | 'Energetic' | 'Warm' | 'Wise' | 'Neutral';
 export const voiceStyles: VoiceStyle[] = ['Divine Feminine', 'Cosmic Neutral', 'Sacred Masculine', 'Calm', 'Energetic', 'Warm', 'Wise', 'Neutral'];
 
-// This is a simplified mapping. Real voice style selection would depend on TTS capabilities.
-// For browser's SpeechSynthesis, voice selection is by `SpeechSynthesisVoice` objects.
-// We can map styles to preferred voice characteristics if available.
 export interface VoiceConfig {
   lang: string;
   pitch?: number;

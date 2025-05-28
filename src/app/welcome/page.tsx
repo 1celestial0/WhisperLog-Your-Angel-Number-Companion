@@ -15,9 +15,11 @@ export default function WelcomePage() {
   const router = useRouter();
   const [selectedLanguage, setSelectedLanguage] = useState<Language | undefined>(undefined);
   const [mounted, setMounted] = useState(false);
+  const [year, setYear] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    setYear(new Date().getFullYear());
     // Optionally, try to load a previously selected language
     const storedLang = localStorage.getItem('whisperlog_language') as Language;
     if (languages.includes(storedLang)) {
@@ -41,25 +43,14 @@ export default function WelcomePage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4">
         <Sparkles className="h-12 w-12 text-accent animate-pulse" />
       </div>
-    ); // Or a more sophisticated loading skeleton
+    );
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-6 transition-opacity duration-500 ease-in-out opacity-100">
-      <style jsx global>{`
-        body {
-          background-image: 
-            radial-gradient(1px 1px at 20px 30px, hsl(var(--accent) / 0.2), transparent),
-            radial-gradient(1px 1px at 40px 70px, hsl(var(--foreground) / 0.15), transparent),
-            radial-gradient(ellipse at 70% 20%, hsla(280, 50%, 40%, 0.3), transparent 70%),
-            radial-gradient(ellipse at 20% 80%, hsla(240, 60%, 35%, 0.35), transparent 70%),
-            linear-gradient(hsl(var(--background)), hsl(var(--background)));
-          background-attachment: fixed;
-        }
-      `}</style>
       <Card className="w-full max-w-lg bg-card/80 backdrop-blur-md shadow-2xl shadow-primary/40 border-accent/30">
         <CardHeader className="items-center text-center">
-          <Image src="https://placehold.co/150x100.png" alt="WhisperLog Nebula" width={150} height={100} className="rounded-lg mb-4 opacity-80 hue-rotate-15 data-ai-hint="cosmic spiritual" />
+          <Image src="https://placehold.co/150x100.png" alt="WhisperLog Nebula" width={150} height={100} className="rounded-lg mb-4 opacity-80 hue-rotate-15" data-ai-hint="cosmic spiritual" />
           <CardTitle className="font-handwritten text-5xl text-accent">
             WhisperLog
           </CardTitle>
@@ -71,7 +62,7 @@ export default function WelcomePage() {
           <p className="text-center text-foreground/90 leading-relaxed">
             Tune into the universe's whispers. Log your angel number sightings, uncover their profound meanings, and explore the synchronicities guiding your spiritual journey.
           </p>
-          
+
           <div className="space-y-2">
             <label htmlFor="language-select" className="font-medium text-foreground/90 flex items-center gap-2">
               <Globe className="h-5 w-5 text-primary" /> Select Your Language:
@@ -90,9 +81,9 @@ export default function WelcomePage() {
             </Select>
           </div>
 
-          <Button 
-            onClick={handleProceed} 
-            disabled={!selectedLanguage} 
+          <Button
+            onClick={handleProceed}
+            disabled={!selectedLanguage}
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-xl py-6 font-handwritten tracking-wider"
           >
             <LogIn className="mr-2 h-6 w-6" /> Enter the Cosmos
@@ -100,7 +91,7 @@ export default function WelcomePage() {
         </CardContent>
       </Card>
        <footer className="text-center p-4 mt-8 text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} WhisperLog. All rights reserved.</p>
+        {year && <p>&copy; {year} WhisperLog. All rights reserved.</p>}
       </footer>
     </div>
   );

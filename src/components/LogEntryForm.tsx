@@ -9,10 +9,10 @@ import {
   Form,
   FormControl,
   FormField,
-  FormItem,
-  FormLabel,
+  // FormItem, // No longer used for the problematic section
+  // FormLabel, // No longer used for the problematic section
   FormMessage,
-} from "@/components/ui/form";
+} from "@/components/ui/form"; // Keep for the main form
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -32,6 +32,7 @@ import { interpretAngelNumber, type InterpretAngelNumberOutput } from "@/ai/flow
 import { generateSpokenInsight } from "@/ai/flows/generate-spoken-insight";
 import { polishNote } from "@/ai/flows/polish-note-flow";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label"; // Import the standard Label
 
 // For conceptual i18n demonstration
 const uiText: Record<Language, { angelNumberLabel: string, notesLabel: string, decodeButton: string }> = {
@@ -83,7 +84,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const [isLoadingPolishNote, setIsLoadingPolishNote] = useState(false);
   const [interpretationResult, setInterpretationResult] = useState<InterpretAngelNumberOutput | null>(existingEntry?.interpretation ?? null);
   
-  const [selectedInterpretationLanguage, setSelectedInterpretationLanguage] = useState<Language>(existingEntry?.interpretationLanguage || 'English');
+  const [selectedInterpretationLanguageState, setSelectedInterpretationLanguageState] = useState<Language>(existingEntry?.interpretationLanguage || 'English'); // Renamed to avoid conflict with form field if any
   const [selectedSpokenLanguage, setSelectedSpokenLanguage] = useState<Language>(existingEntry?.spokenInsightLanguage || languages[0]);
   const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>(voiceStyles[0]);
 
@@ -112,7 +113,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       interpretationLanguage: existingEntry.interpretationLanguage || 'English',
     } : {
       angelNumber: "",
-      interpretationLanguage: 'English',
+      interpretationLanguage: 'English', // Default for new entries
       emotion: undefined,
       activity: undefined,
       notes: "",
@@ -121,14 +122,15 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   });
 
   useEffect(() => {
-    // Load global language preference
     const globalLang = localStorage.getItem('whisperlog_language') as Language;
     if (languages.includes(globalLang)) {
       setCurrentUiLanguage(globalLang);
       setCurrentUiText(uiText[globalLang] || uiText.English);
-      form.setValue("interpretationLanguage", globalLang); // Set default for new entries
-      setSelectedInterpretationLanguage(globalLang);
-      setSelectedSpokenLanguage(globalLang); // Default spoken to global
+      if (!existingEntry) { // Only set defaults for new entries
+        form.setValue("interpretationLanguage", globalLang);
+        setSelectedInterpretationLanguageState(globalLang);
+        setSelectedSpokenLanguage(globalLang);
+      }
     }
 
     if (existingEntry) {
@@ -141,19 +143,21 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         interpretationLanguage: existingEntry.interpretationLanguage || globalLang || 'English',
       });
       setInterpretationResult(existingEntry.interpretation ?? null);
-      setSelectedInterpretationLanguage(existingEntry.interpretationLanguage || globalLang || 'English');
+      setSelectedInterpretationLanguageState(existingEntry.interpretationLanguage || globalLang || 'English');
       setSpokenInsightText(existingEntry.spokenInsightText ?? null);
       setSelectedSpokenLanguage(existingEntry.spokenInsightLanguage || existingEntry.interpretationLanguage || globalLang || 'English');
       setNoteCharCount(existingEntry.notes?.length || 0);
     } else {
       // For new entries, ensure interpretationLanguage is set from global or default
       const defaultLang = globalLang || 'English';
-      form.setValue("interpretationLanguage", defaultLang);
-      setSelectedInterpretationLanguage(defaultLang);
+      if(form.getValues("interpretationLanguage") !== defaultLang) { // Check if it's already set (e.g. by previous logic)
+         form.setValue("interpretationLanguage", defaultLang);
+      }
+      setSelectedInterpretationLanguageState(defaultLang);
       setSelectedSpokenLanguage(defaultLang);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingEntry, form.reset, form.setValue]);
+  }, [existingEntry, form.reset, form.setValue]); // Removed form.getValues from dep array as it changes on every render
 
 
   const initializeRecognition = useCallback((
@@ -162,8 +166,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     lang?: string
   ) => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      const SpeechRecognitionImpl = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognitionImpl();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = lang || languageCodes[currentUiLanguage] || 'en-US';
@@ -198,7 +202,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         }
       }
       setIsListeningAngelNumber(false);
-    }, 'en-US'); // Angel numbers are typically numeric, so 'en-US' is fine for processing
+    }, 'en-US'); 
 
     initializeRecognition(notesRecognitionRef, async (transcript) => {
         setIsListeningNotes(false);
@@ -211,12 +215,12 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         } catch (error) {
             console.error("Error polishing note:", error);
             toast({ title: "Note Polishing Error", description: "Could not polish the note. Using raw input.", variant: "destructive" });
-            form.setValue("notes", transcript); // Fallback to raw transcript
+            form.setValue("notes", transcript); 
             setNoteCharCount(transcript.length);
         } finally {
             setIsLoadingPolishNote(false);
         }
-    }, languageCodes[currentUiLanguage] || 'en-US'); // For notes, use the UI language
+    }, languageCodes[currentUiLanguage] || 'en-US'); 
 
     return () => {
         angelNumberRecognitionRef.current?.abort();
@@ -274,7 +278,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         targetLanguage: values.interpretationLanguage,
       });
       setInterpretationResult(interpretationData);
-      setSelectedInterpretationLanguage(values.interpretationLanguage);
+      setSelectedInterpretationLanguageState(values.interpretationLanguage); // Update state for spoken insight source
       setSelectedSpokenLanguage(values.interpretationLanguage); // Default spoken to interpretation lang
 
       const newEntry: LogEntry = {
@@ -287,7 +291,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         mood: values.mood,
         interpretationLanguage: values.interpretationLanguage,
         interpretation: interpretationData,
-        spokenInsightLanguage: values.interpretationLanguage, // Default
+        spokenInsightLanguage: values.interpretationLanguage, 
       };
       onLogEntry(newEntry);
       toast({ title: "Entry Logged", description: `Sighting logged & interpreted in ${values.interpretationLanguage}.` });
@@ -309,7 +313,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     try {
       const spokenData = await generateSpokenInsight({
         interpretationContent: interpretationResult,
-        sourceLanguage: selectedInterpretationLanguage, // Language of the existing text interpretation
+        sourceLanguage: form.getValues("interpretationLanguage"), // Language of the existing text interpretation
         targetLanguage: selectedSpokenLanguage,   // Target language for speech
         voiceStyle: selectedVoiceStyle,
       });
@@ -325,7 +329,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         activity: currentValues.activity,
         notes: currentValues.notes,
         mood: currentValues.mood,
-        interpretationLanguage: selectedInterpretationLanguage,
+        interpretationLanguage: currentValues.interpretationLanguage,
         interpretation: interpretationResult,
         spokenInsightText: spokenData.spokenInsight,
         spokenInsightLanguage: selectedSpokenLanguage,
@@ -371,36 +375,37 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         <CardDescription className="text-foreground/80">Capture the moment and its cosmic significance.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
+        <Form {...form}> {/* Main Form Provider Start */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="angelNumber"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">{currentUiText.angelNumberLabel}</FormLabel>
+                  // Using ShadCN FormItem and FormLabel here as they are inside <Form>
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name} className="text-foreground/90">{currentUiText.angelNumberLabel}</Label>
                     <div className="flex items-center gap-2">
                       <FormControl>
-                        <Input placeholder="e.g., 111 or one-one-one" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 flex-grow" />
+                        <Input id={field.name} placeholder="e.g., 111 or one-one-one" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 flex-grow" />
                       </FormControl>
                        <Button type="button" variant="outline" size="icon" onClick={() => handleMicClick(angelNumberRecognitionRef, isListeningAngelNumber, setIsListeningAngelNumber, "Listening for Angel Number...")} className={`border-accent text-accent hover:bg-accent/10 ${isListeningAngelNumber ? 'bg-accent/20 animate-pulse' : ''}`} aria-label="Use microphone for angel number">
                         <Mic className={`h-5 w-5 ${isListeningAngelNumber ? 'text-destructive' : ''}`} />
                       </Button>
                     </div>
                     <FormMessage />
-                  </FormItem>
+                  </div>
                 )}
               />
                <FormField
                 control={form.control}
                 name="interpretationLanguage"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">Interpretation Language</FormLabel>
-                    <Select onValueChange={(value: Language) => {field.onChange(value); setSelectedInterpretationLanguage(value);}} value={field.value}>
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name} className="text-foreground/90">Interpretation Language</Label>
+                    <Select onValueChange={(value: Language) => {field.onChange(value); setSelectedInterpretationLanguageState(value);}} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
+                        <SelectTrigger id={field.name} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                       </FormControl>
@@ -409,18 +414,18 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
+                  </div>
                 )}
               />
               <FormField
                 control={form.control}
                 name="emotion"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">Your Emotion</FormLabel>
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name} className="text-foreground/90">Your Emotion</Label>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
+                        <SelectTrigger id={field.name} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your emotion" />
                         </SelectTrigger>
                       </FormControl>
@@ -431,18 +436,18 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
+                  </div>
                 )}
               />
               <FormField
                 control={form.control}
                 name="activity"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">Your Activity</FormLabel>
+                  <div className="space-y-2">
+                    <Label htmlFor={field.name} className="text-foreground/90">Your Activity</Label>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
+                        <SelectTrigger id={field.name} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your activity" />
                         </SelectTrigger>
                       </FormControl>
@@ -453,18 +458,18 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
+                  </div>
                 )}
               />
                <FormField
                 control={form.control}
                 name="mood"
                 render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel className="text-foreground/90">Overall Mood (Optional)</FormLabel>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={field.name} className="text-foreground/90">Overall Mood (Optional)</Label>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
+                        <SelectTrigger id={field.name} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent">
                           <SelectValue placeholder="Select your mood" />
                         </SelectTrigger>
                       </FormControl>
@@ -473,7 +478,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
+                  </div>
                 )}
               />
             </div>
@@ -481,11 +486,12 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
               control={form.control}
               name="notes"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground/90">{currentUiText.notesLabel}</FormLabel>
+                <div className="space-y-2">
+                  <Label htmlFor={field.name} className="text-foreground/90">{currentUiText.notesLabel}</Label>
                    <div className="flex items-center gap-2">
                     <FormControl>
                       <Textarea 
+                        id={field.name}
                         placeholder="Any additional thoughts or context..." 
                         {...field} 
                         onChange={handleNotesChange}
@@ -497,15 +503,15 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                   </div>
                   <div className="text-xs text-muted-foreground text-right pr-1">{noteCharCount}/1000</div>
                   <FormMessage />
-                </FormItem>
+                </div>
               )}
             />
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-handwritten tracking-wider" disabled={isLoadingInterpretation || isLoadingPolishNote}>
-              {isLoadingInterpretation ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> :  <Sparkles className="mr-2 h-5 w-5" />}
+              {isLoadingInterpretation ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> :  <Wand2 className="mr-2 h-5 w-5" />}
               {currentUiText.decodeButton}
             </Button>
           </form>
-        </Form>
+        </Form> {/* Main Form Provider End */}
       </CardContent>
 
       {(interpretationResult || isLoadingInterpretation) && (
@@ -566,17 +572,18 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
 
               {showAdvancedOptions && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-primary/30 rounded-md bg-card/50">
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">Spoken Language</FormLabel>
+                  {/* These are NOT part of react-hook-form, so use standard div/Label */}
+                  <div className="space-y-2">
+                    <Label className="text-foreground/90">Spoken Language</Label>
                     <Select value={selectedSpokenLanguage} onValueChange={(val: Language) => setSelectedSpokenLanguage(val)}>
                       <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
                         {languages.map(lang => <SelectItem key={lang} value={lang}>{lang}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </FormItem>
-                  <FormItem>
-                    <FormLabel className="text-foreground/90">Voice Style</FormLabel>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-foreground/90">Voice Style</Label>
                      <Select value={selectedVoiceStyle} onValueChange={(val: VoiceStyle) => setSelectedVoiceStyle(val)}>
                       <SelectTrigger className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-[#3d1a78] text-foreground border-accent">
@@ -585,7 +592,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                         </ScrollArea>
                       </SelectContent>
                     </Select>
-                  </FormItem>
+                  </div>
                 </div>
               )}
 
@@ -620,3 +627,5 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     </Card>
   );
 }
+
+    

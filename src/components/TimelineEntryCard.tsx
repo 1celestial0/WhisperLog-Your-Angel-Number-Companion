@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { languageCodes } from "@/lib/types";
+import { languageCodes, languages as availableLanguages } from "@/lib/types"; // Import availableLanguages
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -38,8 +37,14 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
     }
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(entry.spokenInsightText);
-      // Assuming English for now, or it needs to be stored with the entry
-      utterance.lang = languageCodes['English']; // Default or stored language
+      // Determine language. If not stored with entry, default or try to infer.
+      // For now, assuming English if not specified, or using first available language if entry.language is not set.
+      // This part might need refinement if entry doesn't store language of spokenInsightText
+      const langKey = Object.keys(languageCodes).find(key => 
+        entry.spokenInsightText && typeof entry.spokenInsightText === 'string' // A simple heuristic or a stored lang prop would be better
+      ) || 'English';
+      utterance.lang = languageCodes[langKey as keyof typeof languageCodes] || languageCodes.English;
+      
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     } else {
@@ -110,7 +115,7 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
         )}
         {entry.interpretation && (
           <div className="text-sm pt-3 mt-3 border-t border-border/50 space-y-2">
-            <h4 className="font-semibold text-lg flex items-center gap-1.5 text-accent mb-2"><Sparkles className="h-5 w-5" /> AI Interpretation:</h4>
+            <h4 className="font-semibold text-lg flex items-center gap-1.5 text-accent mb-2"><Sparkles className="h-5 w-5" /> WhisperLog Interpretation:</h4>
             
             <div className="pl-2 space-y-1">
               <p className="flex items-start"><Zap className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Message:</strong> {entry.interpretation.theMessage}</p>
@@ -134,4 +139,3 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
     </Card>
   );
 }
-

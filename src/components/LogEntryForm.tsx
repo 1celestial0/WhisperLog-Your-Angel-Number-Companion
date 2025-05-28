@@ -23,8 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ChevronDown, ChevronUp, Loader2, Sparkles, Volume2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Activity, ChevronDown, ChevronUp, Loader2, Mic, Sparkles, Volume2 } from "lucide-react"; // Added Mic icon
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { LogEntry, Emotion, Activity as ActivityType, Mood, Language, VoiceStyle } from "@/lib/types";
 import { emotions, activities, moods, languages, voiceStyles, languageCodes } from "@/lib/types";
@@ -78,6 +78,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>(voiceStyles.includes('Cosmic Neutral') ? 'Cosmic Neutral' : voiceStyles[0]);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [noteCharCount, setNoteCharCount] = useState(existingEntry?.notes?.length || 0);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const form = useForm<LogEntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -111,6 +113,72 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     }
   }, [existingEntry, form]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US'; // Default to English for recognition
+
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[event.results.length -1][0].transcript.trim();
+        const numericTranscript = convertAngelNumberInput(transcript);
+        if (numericTranscript) {
+          form.setValue("angelNumber", numericTranscript);
+        } else {
+          // Attempt to correct common speech misinterpretations for numbers if possible or show error
+           const spokenWords = transcript.toLowerCase().split(/[\s-]+/);
+           const mappedNumbers = spokenWords.map(word => textToNumberMapping[word] || word).join("");
+            if (/^\d{1,4}$/.test(mappedNumbers)) {
+                 form.setValue("angelNumber", mappedNumbers);
+            } else {
+                toast({ title: "Speech Recognition", description: `Could not convert "${transcript}" to a valid number. Please try again or type manually.`, variant: "destructive" });
+            }
+        }
+        setIsListening(false);
+      };
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Speech recognition error', event.error);
+        let errorMessage = "Speech recognition error. Please try again.";
+        if (event.error === 'no-speech') {
+            errorMessage = "No speech detected. Please try again.";
+        } else if (event.error === 'audio-capture') {
+            errorMessage = "Microphone error. Please check your microphone.";
+        } else if (event.error === 'not-allowed') {
+            errorMessage = "Microphone access denied. Please enable microphone permissions.";
+        }
+        toast({ title: "Speech Recognition Error", description: errorMessage, variant: "destructive" });
+        setIsListening(false);
+      };
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.setValue, toast]);
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) {
+      toast({ title: "Unsupported", description: "Speech recognition not available on this device.", variant: "destructive" });
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast({ title: "Listening...", description: "Please say the angel number." });
+      } catch (e) {
+         console.error("Error starting speech recognition:", e);
+         toast({ title: "Speech Recognition Error", description: "Could not start listening. Please ensure microphone permissions are granted.", variant: "destructive" });
+         setIsListening(false);
+      }
+    }
+  };
+
 
   async function onSubmit(values: LogEntryFormValues) {
     setIsLoadingInterpretation(true);
@@ -127,7 +195,6 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     if (values.angelNumber !== processedNumber) {
         form.setValue("angelNumber", processedNumber);
     }
-
 
     try {
       const numberAsInt = parseInt(processedNumber, 10);
@@ -166,18 +233,15 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   }
 
   const handleGenerateSpokenInsight = async () => {
-    if (!interpretationResult?.theMessage || !form.getValues("angelNumber")) {
-      toast({ title: "Missing Data", description: "Cannot generate spoken insight without an interpretation and angel number.", variant: "destructive" });
+    if (!interpretationResult) { // Check for the whole interpretationResult object
+      toast({ title: "Missing Data", description: "Cannot generate spoken insight without an interpretation.", variant: "destructive" });
       return;
     }
     setIsLoadingSpokenInsight(true);
     setSpokenInsightText(null);
     try {
       const spokenData = await generateSpokenInsight({
-        number: form.getValues("angelNumber"),
-        emotion: form.getValues("emotion"),
-        activity: form.getValues("activity"),
-        notes: interpretationResult.theMessage + (interpretationResult.spiritualSignificance ? " " + interpretationResult.spiritualSignificance : ""),
+        interpretationContent: interpretationResult, // Pass the whole object
         language: selectedLanguage,
         voiceStyle: selectedVoiceStyle,
       });
@@ -213,7 +277,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     }
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(spokenInsightText);
-      utterance.lang = languageCodes[selectedLanguage];
+      utterance.lang = languageCodes[selectedLanguage]; // Use selected language
       window.speechSynthesis.cancel(); 
       window.speechSynthesis.speak(utterance);
     } else {
@@ -252,9 +316,14 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Angel Number (e.g., 111 or one-one-one)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter number (e.g., 111 or one-one-one)" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70" />
-                    </FormControl>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input placeholder="Enter number (e.g., 111 or one-one-one)" {...field} className="bg-[rgba(6,3,15,0.9)] text-foreground border-accent placeholder:text-foreground/70 flex-grow" />
+                      </FormControl>
+                       <Button type="button" variant="outline" size="icon" onClick={handleMicClick} className={`border-accent text-accent hover:bg-accent/10 ${isListening ? 'bg-accent/20' : ''}`} aria-label="Use microphone to input angel number">
+                        <Mic className={`h-5 w-5 ${isListening ? 'text-destructive' : ''}`} />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -344,7 +413,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
             />
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoadingInterpretation}>
               {isLoadingInterpretation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :  <Sparkles className="mr-2 h-4 w-4" />}
-              Decode
+              Decode <span className="text-lg ml-1">🔮</span>
             </Button>
           </form>
         </Form>
@@ -352,38 +421,40 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
 
       {(interpretationResult || isLoadingInterpretation) && (
         <CardFooter className="flex flex-col items-start gap-4 pt-6">
-          <h3 className="text-xl font-semibold text-primary">AI Interpretation:</h3>
+          <h3 className="text-xl font-semibold text-primary">WhisperLog Interpretation:</h3>
           {isLoadingInterpretation && <div className="flex items-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating wisdom...</div>}
           
           {interpretationResult && !isLoadingInterpretation && (
-             <ScrollArea className="h-64 w-full rounded-md border border-border p-4 bg-[rgba(6,3,15,0.8)] text-foreground space-y-3">
-              <div>
-                <h4 className="font-bold text-accent">The Message:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.theMessage}</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Spiritual Significance:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.spiritualSignificance}</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Ancient Wisdom:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.ancientWisdom}</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Context:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.context}</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Quote:</h4>
-                <p className="whitespace-pre-wrap italic">&ldquo;{interpretationResult.quote}&rdquo;</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Metaphor:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.metaphor}</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Reflection Question:</h4>
-                <p className="whitespace-pre-wrap">{interpretationResult.reflectionQuestion}</p>
+             <ScrollArea className="h-64 w-full rounded-md border border-border p-4 bg-[rgba(6,3,15,0.8)] text-foreground">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-bold text-accent">The Message:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.theMessage}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Spiritual Significance:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.spiritualSignificance}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Ancient Wisdom:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.ancientWisdom}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Context:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.context}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Quote:</h4>
+                  <p className="whitespace-pre-wrap italic">&ldquo;{interpretationResult.quote}&rdquo;</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Metaphor:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.metaphor}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-accent">Reflection Question:</h4>
+                  <p className="whitespace-pre-wrap">{interpretationResult.reflectionQuestion}</p>
+                </div>
               </div>
             </ScrollArea>
           )}
@@ -449,4 +520,3 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     </Card>
   );
 }
-

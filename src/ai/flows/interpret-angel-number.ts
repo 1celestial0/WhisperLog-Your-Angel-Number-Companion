@@ -1,3 +1,4 @@
+
 // This is a server-side file
 'use server';
 
@@ -23,7 +24,13 @@ export type InterpretAngelNumberInput = z.infer<
 >;
 
 const InterpretAngelNumberOutputSchema = z.object({
-  interpretation: z.string().describe('The spiritual interpretation of the angel number sighting.'),
+  theMessage: z.string().describe("The core meaning of the angel number sighting (e.g., 'Alignment and manifestation')."),
+  spiritualSignificance: z.string().describe("The deeper spiritual context (e.g., 'A sign of spiritual awakening')."),
+  ancientWisdom: z.string().describe("Connections to traditional wisdom or numerology (e.g., 'In Vedic numerology, 111 represents the trinity')."),
+  context: z.string().describe("Personalized insight based on the user's emotion, activity, and notes (e.g., 'Your joyful state while meditating suggests alignment')."),
+  quote: z.string().describe("An inspirational saying or quote related to the interpretation (e.g., 'When you make a choice, you change the future. - Deepak Chopra')."),
+  metaphor: z.string().describe("Poetic imagery or a metaphor to illustrate the message (e.g., 'Like seeds sprouting, your thoughts are becoming reality')."),
+  reflectionQuestion: z.string().describe("An introspection prompt for the user (e.g., 'What intentions are you ready to manifest?')."),
 });
 export type InterpretAngelNumberOutput = z.infer<
   typeof InterpretAngelNumberOutputSchema
@@ -39,16 +46,21 @@ const interpretAngelNumberPrompt = ai.definePrompt({
   name: 'interpretAngelNumberPrompt',
   input: {schema: InterpretAngelNumberInputSchema},
   output: {schema: InterpretAngelNumberOutputSchema},
-  prompt: `You are a spiritual advisor providing guidance based on angel numbers.
+  prompt: `You are a spiritual guide specializing in numerology, astrology, and cosmic wisdom.
+Interpret the angel number {{{number}}} for a user who was feeling {{{emotion}}} while engaged in "{{{activity}}}".
+Their personal notes about the sighting are: "{{{notes}}}"
 
-  Interpret the meaning of the angel number sighting based on the following information:
+Respond with the following structured interpretation. Use cosmic, poetic language throughout.
 
-  Number: {{{number}}}
-  Emotion: {{{emotion}}}
-  Activity: {{{activity}}}
-  Notes: {{{notes}}}
+1.  **The Message**: (Core meaning of the number)
+2.  **Spiritual Significance**: (Deeper spiritual context and insights)
+3.  **Ancient Wisdom**: (Connect to numerology, Vedic wisdom, or other traditions)
+4.  **Context**: (Personalize the interpretation based on the user's emotion, activity, and notes)
+5.  **Quote**: (Provide an inspirational quote that resonates with the message)
+6.  **Metaphor**: (Offer a poetic metaphor to illustrate the interpretation)
+7.  **Reflection Question**: (Pose a thoughtful question for the user to ponder)
 
-  Provide a personalized spiritual interpretation of the angel number sighting, incorporating the number itself, the user's emotional state, the activity they were engaged in, and any notes they made.  Reason when to incorporate Vedic wisdom in your analysis.
+Ensure each section is clearly defined and provides insightful, uplifting guidance.
   `,
 });
 
@@ -60,6 +72,10 @@ const interpretAngelNumberFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await interpretAngelNumberPrompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('Failed to get interpretation from AI model.');
+    }
+    return output;
   }
 );
+

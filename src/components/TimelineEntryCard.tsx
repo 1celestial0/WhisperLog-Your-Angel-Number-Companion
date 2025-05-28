@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogEntry } from "@/lib/types";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Tag, MessageSquare, Smile, Sparkles, Edit3, Trash2, Volume2 } from "lucide-react";
+import { CalendarDays, Tag, MessageSquare, Smile, Sparkles, Edit3, Trash2, Volume2, BookOpenText, Brain, Feather, Zap, Lightbulb, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -87,7 +88,7 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary" className="flex items-center gap-1.5">
             <Tag className="h-3.5 w-3.5" /> Emotion: {entry.emotion}
@@ -103,14 +104,23 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
         </div>
         {entry.notes && (
           <div className="text-sm">
-            <h4 className="font-semibold flex items-center gap-1.5"><MessageSquare className="h-4 w-4 text-primary" /> Notes:</h4>
-            <p className="pl-2 text-muted-foreground whitespace-pre-wrap">{entry.notes}</p>
+            <h4 className="font-semibold flex items-center gap-1.5 text-primary"><MessageSquare className="h-4 w-4" /> Notes:</h4>
+            <p className="pl-6 text-muted-foreground whitespace-pre-wrap">{entry.notes}</p>
           </div>
         )}
         {entry.interpretation && (
-          <div className="text-sm pt-2 border-t border-border/50">
-            <h4 className="font-semibold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-accent" /> AI Interpretation:</h4>
-            <p className="pl-2 text-foreground whitespace-pre-wrap">{entry.interpretation}</p>
+          <div className="text-sm pt-3 mt-3 border-t border-border/50 space-y-2">
+            <h4 className="font-semibold text-lg flex items-center gap-1.5 text-accent mb-2"><Sparkles className="h-5 w-5" /> AI Interpretation:</h4>
+            
+            <div className="pl-2 space-y-1">
+              <p className="flex items-start"><Zap className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Message:</strong> {entry.interpretation.theMessage}</p>
+              <p className="flex items-start"><Lightbulb className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Significance:</strong> {entry.interpretation.spiritualSignificance}</p>
+              <p className="flex items-start"><BookOpenText className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Ancient Wisdom:</strong> {entry.interpretation.ancientWisdom}</p>
+              <p className="flex items-start"><Brain className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Context:</strong> {entry.interpretation.context}</p>
+              <p className="flex items-start"><Feather className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Quote:</strong> <em className="italic">&ldquo;{entry.interpretation.quote}&rdquo;</em></p>
+              <p className="flex items-start"><Sparkles className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Metaphor:</strong> {entry.interpretation.metaphor}</p>
+              <p className="flex items-start"><HelpCircle className="h-4 w-4 mr-2 mt-0.5 shrink-0 text-primary/80" /><strong className="font-medium text-foreground/90 mr-1">Reflection:</strong> {entry.interpretation.reflectionQuestion}</p>
+            </div>
           </div>
         )}
       </CardContent>
@@ -124,3 +134,4 @@ export function TimelineEntryCard({ entry, onEdit, onDelete }: TimelineEntryCard
     </Card>
   );
 }
+

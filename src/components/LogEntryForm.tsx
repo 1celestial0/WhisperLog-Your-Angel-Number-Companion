@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,15 +29,19 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { LogEntry, Emotion, Activity as ActivityType, Mood, Language, VoiceStyle } from "@/lib/types";
 import { emotions, activities, moods, languages, voiceStyles, languageCodes } from "@/lib/types";
-import { interpretAngelNumber } from "@/ai/flows/interpret-angel-number";
+import { interpretAngelNumber, type InterpretAngelNumberOutput } from "@/ai/flows/interpret-angel-number";
 import { generateSpokenInsight } from "@/ai/flows/generate-spoken-insight";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formSchema = z.object({
-  angelNumber: z.string().min(1, { message: "Angel number is required." }).regex(/^\d+$/, { message: "Must be digits only." }),
+  angelNumber: z.string()
+    .min(1, { message: "Angel number is required." })
+    .regex(/^(\d{1,4}|(?:one|two|three|four|five|six|seven|eight|nine|zero)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine|zero)){0,3})$/i, 
+      { message: "Enter digits (e.g., 111) or text (e.g., one-one-one)." }
+    ),
   emotion: z.enum(emotions, { required_error: "Emotion is required." }),
   activity: z.enum(activities, { required_error: "Activity is required." }),
-  notes: z.string().optional(),
+  notes: z.string().max(1000, { message: "Note cannot exceed 1000 characters." }).optional(),
   mood: z.enum(moods).optional(),
 });
 
@@ -47,16 +52,33 @@ interface LogEntryFormProps {
   existingEntry?: LogEntry | null;
 }
 
+const textToNumberMapping: { [key: string]: string } = {
+  "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+  "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+};
+
+function convertAngelNumberInput(input: string): string {
+  const numericOnly = /^\d{1,4}$/.test(input);
+  if (numericOnly) return input;
+
+  const words = input.toLowerCase().split(/[\s-]+/);
+  const digits = words.map(word => textToNumberMapping[word] || "").join("");
+  
+  return /^\d{1,4}$/.test(digits) ? digits : "";
+}
+
+
 export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const { toast } = useToast();
   const [isLoadingInterpretation, setIsLoadingInterpretation] = useState(false);
   const [isLoadingSpokenInsight, setIsLoadingSpokenInsight] = useState(false);
-  const [interpretationResult, setInterpretationResult] = useState<string | null>(existingEntry?.interpretation ?? null);
+  const [interpretationResult, setInterpretationResult] = useState<InterpretAngelNumberOutput | null>(existingEntry?.interpretation ?? null);
   const [spokenInsightText, setSpokenInsightText] = useState<string | null>(existingEntry?.spokenInsightText ?? null);
   
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('English');
-  const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>('Neutral');
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(languages.includes('English') ? 'English' : languages[0]);
+  const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>(voiceStyles.includes('Cosmic Neutral') ? 'Cosmic Neutral' : voiceStyles[0]);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [noteCharCount, setNoteCharCount] = useState(existingEntry?.notes?.length || 0);
 
   const form = useForm<LogEntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -75,15 +97,45 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (existingEntry) {
+      form.reset({
+        angelNumber: existingEntry.angelNumber,
+        emotion: existingEntry.emotion,
+        activity: existingEntry.activity,
+        notes: existingEntry.notes || "",
+        mood: existingEntry.mood,
+      });
+      setInterpretationResult(existingEntry.interpretation ?? null);
+      setSpokenInsightText(existingEntry.spokenInsightText ?? null);
+      setNoteCharCount(existingEntry.notes?.length || 0);
+    }
+  }, [existingEntry, form]);
+
+
   async function onSubmit(values: LogEntryFormValues) {
     setIsLoadingInterpretation(true);
     setInterpretationResult(null);
     setSpokenInsightText(null);
 
+    const processedNumber = convertAngelNumberInput(values.angelNumber);
+    if (!processedNumber) {
+        form.setError("angelNumber", { type: "manual", message: "Invalid angel number format. Use digits (e.g., 111) or text (e.g., one-one-one), up to 4 digits." });
+        setIsLoadingInterpretation(false);
+        return;
+    }
+    
+    // Update form value with processed number for consistency if it was text
+    if (values.angelNumber !== processedNumber) {
+        form.setValue("angelNumber", processedNumber);
+    }
+
+
     try {
-      const numberAsInt = parseInt(values.angelNumber, 10);
+      const numberAsInt = parseInt(processedNumber, 10);
+      // Already validated by convertAngelNumberInput and regex, but good to have a final check
       if (isNaN(numberAsInt)) {
-        toast({ title: "Error", description: "Invalid angel number format.", variant: "destructive" });
+        toast({ title: "Error", description: "Invalid angel number after processing.", variant: "destructive" });
         setIsLoadingInterpretation(false);
         return;
       }
@@ -94,17 +146,17 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         activity: values.activity,
         notes: values.notes,
       });
-      setInterpretationResult(interpretationData.interpretation);
+      setInterpretationResult(interpretationData);
 
       const newEntry: LogEntry = {
         id: existingEntry?.id || crypto.randomUUID(),
         timestamp: existingEntry?.timestamp || new Date().toISOString(),
-        angelNumber: values.angelNumber,
+        angelNumber: processedNumber, // Use processed number
         emotion: values.emotion,
         activity: values.activity,
         notes: values.notes,
         mood: values.mood,
-        interpretation: interpretationData.interpretation,
+        interpretation: interpretationData, // Store the full object
       };
       onLogEntry(newEntry);
       toast({ title: "Entry Logged", description: "Your angel number sighting has been logged and interpreted." });
@@ -117,30 +169,33 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   }
 
   const handleGenerateSpokenInsight = async () => {
-    if (!interpretationResult || !form.getValues("angelNumber")) {
+    if (!interpretationResult?.theMessage || !form.getValues("angelNumber")) {
       toast({ title: "Missing Data", description: "Cannot generate spoken insight without an interpretation and angel number.", variant: "destructive" });
       return;
     }
     setIsLoadingSpokenInsight(true);
     setSpokenInsightText(null);
     try {
+      // The generateSpokenInsight flow might need to be updated if it should also use the structured interpretation.
+      // For now, we'll pass the core message or a relevant part.
+      // The specification for Spoken Insights Engine mentions: "Play button to hear the interpretation".
+      // This implies the spoken insight should be based on the generated interpretation.
+      // Let's assume for now the flow can take the textual parts of the interpretation.
+      // We'll use `theMessage` as a primary component for spoken insight.
       const spokenData = await generateSpokenInsight({
-        number: form.getValues("angelNumber"),
-        emotion: form.getValues("emotion"),
-        activity: form.getValues("activity"),
-        notes: form.getValues("notes"),
+        number: form.getValues("angelNumber"), // Still needed for context if the flow uses it
+        emotion: form.getValues("emotion"),   // Still needed for context
+        activity: form.getValues("activity"), // Still needed for context
+        notes: interpretationResult.theMessage + (interpretationResult.spiritualSignificance ? " " + interpretationResult.spiritualSignificance : ""), // Pass main parts of interpretation
         language: selectedLanguage,
         voiceStyle: selectedVoiceStyle,
       });
       setSpokenInsightText(spokenData.spokenInsight);
       toast({ title: "Spoken Insight Ready", description: "Spoken insight generated." });
 
-      // Find the existing entry and update it with spokenInsightText
-      // This requires onLogEntry to handle updates or a separate update function.
-      // For simplicity, we'll assume onLogEntry can update if id matches.
       const currentValues = form.getValues();
       const updatedEntry: LogEntry = {
-        id: existingEntry?.id || crypto.randomUUID(), // This might be an issue if it's a new entry
+        id: existingEntry?.id || crypto.randomUUID(), 
         timestamp: existingEntry?.timestamp || new Date().toISOString(),
         angelNumber: currentValues.angelNumber,
         emotion: currentValues.emotion,
@@ -151,7 +206,6 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         spokenInsightText: spokenData.spokenInsight,
       };
        onLogEntry(updatedEntry);
-
 
     } catch (error) {
       console.error("Error generating spoken insight:", error);
@@ -169,15 +223,25 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(spokenInsightText);
       utterance.lang = languageCodes[selectedLanguage];
-      // Voice style mapping to specific voices is complex and browser-dependent.
-      // For now, we just set the language.
-      // You might iterate through window.speechSynthesis.getVoices() to find a matching voice.
-      window.speechSynthesis.cancel(); // Cancel any previous speech
+      window.speechSynthesis.cancel(); 
       window.speechSynthesis.speak(utterance);
     } else {
       toast({ title: "Unsupported", description: "Speech synthesis is not supported in your browser.", variant: "destructive" });
     }
   };
+  
+  const handleNotesChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = event.target.value;
+    if (text.length <= 1000) {
+      form.setValue("notes", text);
+      setNoteCharCount(text.length);
+    } else {
+      // Optionally, prevent typing more or trim, currently schema validation handles alert
+      form.setValue("notes", text.substring(0,1000));
+      setNoteCharCount(1000);
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto bg-card/80 backdrop-blur-sm shadow-2xl shadow-primary/30">
@@ -197,9 +261,9 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 name="angelNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Angel Number (e.g., 1111, 444)</FormLabel>
+                    <FormLabel>Angel Number (e.g., 111 or one-one-one)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter number sequence" {...field} />
+                      <Input placeholder="Enter number sequence" {...field} className="bg-cosmic-black text-celestial-silver border-starlight-gold" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,8 +281,10 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                           <SelectValue placeholder="Select your emotion" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {emotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      <SelectContent className="bg-cosmic-indigo text-celestial-silver">
+                        <ScrollArea className="h-[200px]">
+                          {emotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -237,7 +303,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                           <SelectValue placeholder="Select your activity" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-cosmic-indigo text-celestial-silver">
                          <ScrollArea className="h-[200px]">
                           {activities.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                         </ScrollArea>
@@ -275,15 +341,20 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                 <FormItem>
                   <FormLabel>Notes (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any additional thoughts or context..." {...field} />
+                    <Textarea 
+                      placeholder="Any additional thoughts or context..." 
+                      {...field} 
+                      onChange={handleNotesChange}
+                      className="bg-cosmic-black text-celestial-silver border-starlight-gold" />
                   </FormControl>
+                  <div className="text-xs text-muted-foreground text-right pr-1">{noteCharCount}/1000 characters</div>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoadingInterpretation}>
-              {isLoadingInterpretation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-              Log & Interpret Sighting
+              {isLoadingInterpretation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :  <Sparkles className="mr-2 h-4 w-4" /> /* Using Sparkles as 🔮 not available */}
+              Decode
             </Button>
           </form>
         </Form>
@@ -293,21 +364,49 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         <CardFooter className="flex flex-col items-start gap-4 pt-6">
           <h3 className="text-xl font-semibold text-primary">AI Interpretation:</h3>
           {isLoadingInterpretation && <div className="flex items-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating wisdom...</div>}
+          
           {interpretationResult && !isLoadingInterpretation && (
-            <ScrollArea className="h-32 w-full rounded-md border border-border p-3 bg-background/50">
-              <p className="text-foreground whitespace-pre-wrap">{interpretationResult}</p>
+             <ScrollArea className="h-64 w-full rounded-md border border-border p-4 bg-cosmic-black/80 text-celestial-silver space-y-3">
+              <div>
+                <h4 className="font-bold text-starlight-gold">The Message:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.theMessage}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Spiritual Significance:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.spiritualSignificance}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Ancient Wisdom:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.ancientWisdom}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Context:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.context}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Quote:</h4>
+                <p className="whitespace-pre-wrap italic">&ldquo;{interpretationResult.quote}&rdquo;</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Metaphor:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.metaphor}</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-starlight-gold">Reflection Question:</h4>
+                <p className="whitespace-pre-wrap">{interpretationResult.reflectionQuestion}</p>
+              </div>
             </ScrollArea>
           )}
           
           {interpretationResult && !isLoadingInterpretation && (
-            <div className="w-full space-y-4">
+            <div className="w-full space-y-4 pt-4">
               <Button variant="outline" onClick={() => setShowAdvancedOptions(!showAdvancedOptions)} className="w-full text-sm">
                 {showAdvancedOptions ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
                 Spoken Insight Options
               </Button>
 
               {showAdvancedOptions && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-md bg-card">
                   <FormItem>
                     <FormLabel>Language</FormLabel>
                     <Select value={selectedLanguage} onValueChange={(val: Language) => setSelectedLanguage(val)}>
@@ -333,7 +432,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
                  <Button 
                   onClick={handleGenerateSpokenInsight} 
                   className="w-full sm:w-auto flex-grow bg-primary hover:bg-primary/90" 
-                  disabled={isLoadingSpokenInsight || !interpretationResult}
+                  disabled={isLoadingSpokenInsight || !interpretationResult.theMessage}
                 >
                   {isLoadingSpokenInsight ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
                   Generate Spoken Insight
@@ -360,3 +459,4 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     </Card>
   );
 }
+

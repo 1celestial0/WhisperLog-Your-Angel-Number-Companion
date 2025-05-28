@@ -1,8 +1,11 @@
-export type Emotion = 'Joyful' | 'Hopeful' | 'Curious' | 'Confused' | 'Anxious' | 'Neutral' | 'Peaceful' | 'Excited';
-export const emotions: Emotion[] = ['Joyful', 'Hopeful', 'Curious', 'Confused', 'Anxious', 'Neutral', 'Peaceful', 'Excited'];
 
-export type Activity = 'Meditating' | 'Working' | 'Commuting' | 'Relaxing' | 'Exercising' | 'Reading' | 'Socializing' | 'Dreaming' | 'Eating' | 'Other';
-export const activities: Activity[] = ['Meditating', 'Working', 'Commuting', 'Relaxing', 'Exercising', 'Reading', 'Socializing', 'Dreaming', 'Eating', 'Other'];
+import type { InterpretAngelNumberOutput } from "@/ai/flows/interpret-angel-number";
+
+export type Emotion = 'Joyful' | 'Hopeful' | 'Curious' | 'Confused' | 'Anxious' | 'Neutral' | 'Peaceful' | 'Excited' | 'Inspired' | 'Grateful' | 'Overwhelmed' | 'Introspective' | 'Serene';
+export const emotions: Emotion[] = ['Joyful', 'Hopeful', 'Curious', 'Confused', 'Anxious', 'Neutral', 'Peaceful', 'Excited', 'Inspired', 'Grateful', 'Overwhelmed', 'Introspective', 'Serene'];
+
+export type Activity = 'Meditating' | 'Working' | 'Commuting' | 'Relaxing' | 'Exercising' | 'Reading' | 'Socializing' | 'Dreaming' | 'Eating' | 'Other' | 'Driving' | 'Resting' | 'Creating' | 'Praying' | 'Contemplating' | 'Journaling' | 'Walking';
+export const activities: Activity[] = ['Meditating', 'Working', 'Commuting', 'Relaxing', 'Exercising', 'Reading', 'Socializing', 'Dreaming', 'Eating', 'Driving', 'Resting', 'Creating', 'Praying', 'Contemplating', 'Journaling', 'Walking', 'Other'];
 
 export type Mood = 'Excellent' | 'Good' | 'Okay' | 'Bad' | 'Terrible';
 export const moods: Mood[] = ['Excellent', 'Good', 'Okay', 'Bad', 'Terrible'];
@@ -14,7 +17,7 @@ export interface LogEntry {
   emotion: Emotion;
   activity: Activity;
   notes?: string;
-  interpretation?: string;
+  interpretation?: InterpretAngelNumberOutput; // Updated to new structured type
   spokenInsightText?: string; // Text generated for speech
   mood?: Mood; 
 }
@@ -24,17 +27,18 @@ export interface DailyAffirmation {
   text: string;
 }
 
-export type Language = 'English' | 'Spanish' | 'French' | 'Hindi';
-export const languages: Language[] = ['English', 'Spanish', 'French', 'Hindi'];
+export type Language = 'English' | 'Spanish' | 'French' | 'Hindi' | 'Bengali';
+export const languages: Language[] = ['English', 'Spanish', 'French', 'Hindi', 'Bengali'];
 export const languageCodes: Record<Language, string> = {
   English: 'en-US',
   Spanish: 'es-ES',
   French: 'fr-FR',
   Hindi: 'hi-IN',
+  Bengali: 'bn-IN',
 };
 
-export type VoiceStyle = 'Calm' | 'Energetic' | 'Warm' | 'Wise' | 'Neutral';
-export const voiceStyles: VoiceStyle[] = ['Calm', 'Energetic', 'Warm', 'Wise', 'Neutral'];
+export type VoiceStyle = 'Calm' | 'Energetic' | 'Warm' | 'Wise' | 'Neutral' | 'Divine Feminine' | 'Cosmic Neutral' | 'Sacred Masculine';
+export const voiceStyles: VoiceStyle[] = ['Calm', 'Energetic', 'Warm', 'Wise', 'Neutral', 'Divine Feminine', 'Cosmic Neutral', 'Sacred Masculine'];
 
 // This is a simplified mapping. Real voice style selection would depend on TTS capabilities.
 // For browser's SpeechSynthesis, voice selection is by `SpeechSynthesisVoice` objects.
@@ -44,3 +48,4 @@ export interface VoiceConfig {
   pitch?: number;
   rate?: number;
 }
+

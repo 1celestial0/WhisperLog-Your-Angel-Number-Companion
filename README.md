@@ -1,4 +1,3 @@
-# WhisperLog: Your Angel Number Companion
 
 WhisperLog helps you record angel number sightings and explore their meaning. It combines logging tools with AI powered insights to create a personal spiritual journal.
 

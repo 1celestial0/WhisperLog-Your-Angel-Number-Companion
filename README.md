@@ -1,4 +1,3 @@
-
 WhisperLog helps you record angel number sightings and explore their meaning. It combines logging tools with AI powered insights to create a personal spiritual journal.
 
 ## Features
@@ -37,3 +36,7 @@ These features are described in more detail in [`docs/blueprint.md`](docs/bluepr
 
 ## Usage
 After installing dependencies, run both `npm run dev` and `npm run genkit:dev` in separate terminals. Visit the URL printed by Next.js (default `http://localhost:9002`) to use the web app. The Genkit dashboard provides a UI for testing individual AI flows during development.
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on branch workflow, commit style and code quality checks.

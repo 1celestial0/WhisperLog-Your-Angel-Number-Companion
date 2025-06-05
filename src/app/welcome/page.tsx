@@ -9,23 +9,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Globe, LogIn, Sparkles } from 'lucide-react';
 import type { Language } from '@/lib/types';
 import { languages } from '@/lib/types';
+import { useLanguage } from '@/context/LanguageContext';
 import Image from 'next/image';
 
 export default function WelcomePage() {
   const router = useRouter();
-  const [selectedLanguage, setSelectedLanguage] = useState<Language | undefined>(undefined);
+  const { language, setLanguage } = useLanguage();
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | undefined>(language);
   const [mounted, setMounted] = useState(false);
   const [year, setYear] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
     setYear(new Date().getFullYear());
-    // Optionally, try to load a previously selected language
-    const storedLang = localStorage.getItem('whisperlog_language') as Language;
-    if (languages.includes(storedLang)) {
-      setSelectedLanguage(storedLang);
-    }
   }, []);
+
+  useEffect(() => {
+    if (languages.includes(language)) {
+      setSelectedLanguage(language);
+    }
+  }, [language]);
 
   const handleLanguageSelect = (language: Language) => {
     setSelectedLanguage(language);
@@ -33,7 +36,7 @@ export default function WelcomePage() {
 
   const handleProceed = () => {
     if (selectedLanguage) {
-      localStorage.setItem('whisperlog_language', selectedLanguage);
+      setLanguage(selectedLanguage);
       router.push('/log');
     }
   };

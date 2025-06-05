@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import useLocalStorage from "@/hooks/useLocalStorage";
+import useSyncedLogEntries from "@/hooks/useSyncedLogEntries";
 import type { LogEntry } from "@/lib/types";
 import { TimelineEntryCard } from "@/components/TimelineEntryCard";
 import { LogEntryForm } from "@/components/LogEntryForm"; // For editing
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 
 export default function TimelinePage() {
-  const [logEntries, setLogEntries] = useLocalStorage<LogEntry[]>("logEntries", []);
+  const [logEntries, setLogEntries] = useSyncedLogEntries();
   const [editingEntry, setEditingEntry] = useState<LogEntry | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 

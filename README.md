@@ -14,15 +14,16 @@ WhisperLog helps you record angel number sightings and explore their meaning. It
 These features are described in more detail in [`docs/blueprint.md`](docs/blueprint.md).
 
 ## Installation
-1. Install dependencies:
+1. Copy `.env.example` to `.env` and fill in your credentials.
+2. Install dependencies:
    ```bash
    npm install
    ```
-2. Start the Next.js development server:
+3. Start the Next.js development server:
    ```bash
    npm run dev
    ```
-3. To run AI flows in development, start the Genkit dev server:
+4. To run AI flows in development, start the Genkit dev server:
    ```bash
    npm run genkit:dev
    ```

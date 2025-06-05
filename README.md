@@ -1,4 +1,3 @@
-
 WhisperLog helps you record angel number sightings and explore their meaning. It combines logging tools with AI powered insights to create a personal spiritual journal.
 
 ## Features
@@ -56,3 +55,7 @@ To create a production build and start the app:
 npm run build
 npm start
 ```
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on branch workflow, commit style and code quality checks.

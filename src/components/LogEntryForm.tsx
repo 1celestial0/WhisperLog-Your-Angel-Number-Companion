@@ -28,6 +28,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { LogEntry, Emotion, Activity as ActivityType, Mood, Language, VoiceStyle } from "@/lib/types";
 import { emotions, activities, moods, languages, voiceStyles, languageCodes } from "@/lib/types";
+import { useLanguage } from "@/context/LanguageContext";
 import { interpretAngelNumber, type InterpretAngelNumberOutput } from "@/ai/flows/interpret-angel-number";
 import { generateSpokenInsight } from "@/ai/flows/generate-spoken-insight";
 import { polishNote } from "@/ai/flows/polish-note-flow";
@@ -101,6 +102,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const [currentUiLanguage, setCurrentUiLanguage] = useState<Language>('English');
   const [currentUiText, setCurrentUiText] = useState(uiText.English);
 
+  const { language: globalLanguage } = useLanguage();
+
 
   const form = useForm<LogEntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -122,14 +125,13 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   });
 
   useEffect(() => {
-    const globalLang = localStorage.getItem('whisperlog_language') as Language;
-    if (languages.includes(globalLang)) {
-      setCurrentUiLanguage(globalLang);
-      setCurrentUiText(uiText[globalLang] || uiText.English);
-      if (!existingEntry) { // Only set defaults for new entries
-        form.setValue("interpretationLanguage", globalLang);
-        setSelectedInterpretationLanguageState(globalLang);
-        setSelectedSpokenLanguage(globalLang);
+    if (languages.includes(globalLanguage)) {
+      setCurrentUiLanguage(globalLanguage);
+      setCurrentUiText(uiText[globalLanguage] || uiText.English);
+      if (!existingEntry) {
+        form.setValue("interpretationLanguage", globalLanguage);
+        setSelectedInterpretationLanguageState(globalLanguage);
+        setSelectedSpokenLanguage(globalLanguage);
       }
     }
 
@@ -140,16 +142,16 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
         activity: existingEntry.activity,
         notes: existingEntry.notes || "",
         mood: existingEntry.mood,
-        interpretationLanguage: existingEntry.interpretationLanguage || globalLang || 'English',
+        interpretationLanguage: existingEntry.interpretationLanguage || globalLanguage || 'English',
       });
       setInterpretationResult(existingEntry.interpretation ?? null);
-      setSelectedInterpretationLanguageState(existingEntry.interpretationLanguage || globalLang || 'English');
+      setSelectedInterpretationLanguageState(existingEntry.interpretationLanguage || globalLanguage || 'English');
       setSpokenInsightText(existingEntry.spokenInsightText ?? null);
-      setSelectedSpokenLanguage(existingEntry.spokenInsightLanguage || existingEntry.interpretationLanguage || globalLang || 'English');
+      setSelectedSpokenLanguage(existingEntry.spokenInsightLanguage || existingEntry.interpretationLanguage || globalLanguage || 'English');
       setNoteCharCount(existingEntry.notes?.length || 0);
     } else {
       // For new entries, ensure interpretationLanguage is set from global or default
-      const defaultLang = globalLang || 'English';
+      const defaultLang = globalLanguage || 'English';
       if(form.getValues("interpretationLanguage") !== defaultLang) { // Check if it's already set (e.g. by previous logic)
          form.setValue("interpretationLanguage", defaultLang);
       }
@@ -157,7 +159,7 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
       setSelectedSpokenLanguage(defaultLang);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingEntry, form.reset, form.setValue]); // Removed form.getValues from dep array as it changes on every render
+  }, [existingEntry, form.reset, form.setValue, globalLanguage]);
 
 
   const initializeRecognition = useCallback((

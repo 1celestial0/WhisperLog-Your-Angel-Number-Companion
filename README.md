@@ -37,3 +37,21 @@ These features are described in more detail in [`docs/blueprint.md`](docs/bluepr
 
 ## Usage
 After installing dependencies, run both `npm run dev` and `npm run genkit:dev` in separate terminals. Visit the URL printed by Next.js (default `http://localhost:9002`) to use the web app. The Genkit dashboard provides a UI for testing individual AI flows during development.
+
+## Environment Variables
+Copy `.env.example` to `.env` and fill in the required values. This file lists the environment variables the application reads at runtime (such as API keys for external services). The development server loads them automatically using `dotenv`.
+
+## Running Tests
+Make sure dependencies are installed with `npm install` and then run:
+
+```bash
+npm test
+```
+
+## Production Build
+To create a production build and start the app:
+
+```bash
+npm run build
+npm start
+```

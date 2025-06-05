@@ -6,7 +6,7 @@ import { LogEntry }
 from "@/lib/types";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Tag, MessageSquare, Smile, Sparkles, Edit3, Trash2, Volume2, BookOpenText, Brain, Feather, Zap, Lightbulb, HelpCircle, LanguagesIcon } from "lucide-react";
+import { CalendarDays, Tag, MessageSquare, Smile, Sparkles, Edit3, Trash2, BookOpenText, Brain, Feather, Zap, Lightbulb, HelpCircle, LanguagesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,

@@ -4,11 +4,11 @@
 import { LogEntryForm } from "@/components/LogEntryForm";
 import useSyncedLogEntries from "@/hooks/useSyncedLogEntries";
 import type { LogEntry } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast"; // Commented out as not used
 
 export default function LogPage() {
-  const [logEntries, setLogEntries] = useSyncedLogEntries();
-  const { toast } = useToast();
+  const [, setLogEntries] = useSyncedLogEntries();
+  // const { toast: _toast } = useToast(); // Commented out as not used
 
   const handleLogEntry = (newEntry: LogEntry) => {
     setLogEntries(prevEntries => {

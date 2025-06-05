@@ -35,11 +35,10 @@ export default function useSyncedLogEntries() {
     });
     return () => unsub();
   }, [setEntries]);
-
   const updateEntries = useCallback(
     (updater: LogEntry[] | ((prev: LogEntry[]) => LogEntry[])) => {
       setEntries((prev) => {
-        const value = typeof updater === 'function' ? (updater as any)(prev) : updater;
+        const value = typeof updater === 'function' ? (updater as (prev: LogEntry[]) => LogEntry[])(prev) : updater;
         saveToFirestore(value);
         return value;
       });

@@ -3,7 +3,7 @@
 
 import { LogEntry, emotions as emotionOptions, activities as activityOptions } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, CartesianGrid, XAxis, YAxis, Bar as RechartsBar } from 'recharts';
+import { BarChart, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid, XAxis, YAxis, Bar as RechartsBar } from 'recharts';
 import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useMemo } from "react";
 

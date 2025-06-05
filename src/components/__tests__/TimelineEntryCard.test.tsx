@@ -3,10 +3,11 @@ import {jest} from '@jest/globals';
 import React from 'react';
 import {render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { LogEntry } from '@/lib/types';
 
 jest.unstable_mockModule('@/hooks/use-toast', () => ({useToast: () => ({toast: jest.fn()})}));
 
-let TimelineEntryCard;
+let TimelineEntryCard: React.ComponentType<{entry: LogEntry, onEdit: (entry: LogEntry) => void, onDelete: (id: string) => void}>;
 
 describe('TimelineEntryCard', () => {
   const entry = {
@@ -16,7 +17,7 @@ describe('TimelineEntryCard', () => {
     emotion: 'Joyful',
     activity: 'Meditating',
     interpretationLanguage: 'English',
-  } as any;
+  } as LogEntry;
 
   beforeEach(async () => {
     jest.resetModules();

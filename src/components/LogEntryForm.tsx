@@ -23,10 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, Loader2, Mic, Sparkles, Volume2, BookOpen, LanguagesIcon, Wand2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Mic, Volume2, BookOpen, LanguagesIcon, Wand2 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import type { LogEntry, Emotion, Activity as ActivityType, Mood, Language, VoiceStyle } from "@/lib/types";
+import type { LogEntry, Language, VoiceStyle } from "@/lib/types";
 import { emotions, activities, moods, languages, voiceStyles, languageCodes } from "@/lib/types";
 import { useLanguage } from "@/context/LanguageContext";
 import { interpretAngelNumber, type InterpretAngelNumberOutput } from "@/ai/flows/interpret-angel-number";
@@ -82,10 +82,9 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
   const { toast } = useToast();
   const [isLoadingInterpretation, setIsLoadingInterpretation] = useState(false);
   const [isLoadingSpokenInsight, setIsLoadingSpokenInsight] = useState(false);
-  const [isLoadingPolishNote, setIsLoadingPolishNote] = useState(false);
-  const [interpretationResult, setInterpretationResult] = useState<InterpretAngelNumberOutput | null>(existingEntry?.interpretation ?? null);
+  const [isLoadingPolishNote, setIsLoadingPolishNote] = useState(false);  const [interpretationResult, setInterpretationResult] = useState<InterpretAngelNumberOutput | null>(existingEntry?.interpretation ?? null);
   
-  const [selectedInterpretationLanguageState, setSelectedInterpretationLanguageState] = useState<Language>(existingEntry?.interpretationLanguage || 'English'); // Renamed to avoid conflict with form field if any
+  // const [selectedInterpretationLanguageState, setSelectedInterpretationLanguageState] = useState<Language>(existingEntry?.interpretationLanguage || 'English'); // Unused - commented out
   const [selectedSpokenLanguage, setSelectedSpokenLanguage] = useState<Language>(existingEntry?.spokenInsightLanguage || languages[0]);
   const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<VoiceStyle>(voiceStyles[0]);
 
@@ -166,9 +165,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     recognitionRef: React.MutableRefObject<SpeechRecognition | null>,
     onResult: (transcript: string) => void,
     lang?: string
-  ) => {
-    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognitionImpl = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  ) => {    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognitionImpl = (window as unknown as { SpeechRecognition?: new() => SpeechRecognition; webkitSpeechRecognition?: new() => SpeechRecognition }).SpeechRecognition || (window as unknown as { SpeechRecognition?: new() => SpeechRecognition; webkitSpeechRecognition?: new() => SpeechRecognition }).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognitionImpl();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
@@ -247,9 +245,8 @@ export function LogEntryForm({ onLogEntry, existingEntry }: LogEntryFormProps) {
     } else {
       try {
         recognitionRef.current.start();
-        setIsListening(true);
-        toast({ title: listeningToastTitle, description: "Please speak clearly." });
-      } catch (e) {
+        setIsListening(true);        toast({ title: listeningToastTitle, description: "Please speak clearly." });
+      } catch {
          toast({ title: "Speech Error", description: "Could not start listening. Check mic permissions.", variant: "destructive" });
          setIsListening(false);
       }

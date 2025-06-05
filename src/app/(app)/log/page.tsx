@@ -2,12 +2,12 @@
 "use client";
 
 import { LogEntryForm } from "@/components/LogEntryForm";
-import useLocalStorage from "@/hooks/useLocalStorage";
+import useSyncedLogEntries from "@/hooks/useSyncedLogEntries";
 import type { LogEntry } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LogPage() {
-  const [logEntries, setLogEntries] = useLocalStorage<LogEntry[]>("logEntries", []);
+  const [logEntries, setLogEntries] = useSyncedLogEntries();
   const { toast } = useToast();
 
   const handleLogEntry = (newEntry: LogEntry) => {
